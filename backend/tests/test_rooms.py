@@ -1,9 +1,18 @@
 import re
+import uuid
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.services.rooms import generate_room_code
+from app.services.errors import ForbiddenError
+from app.services.rooms import (
+    generate_room_code,
+    get_room,
+    update_music_permission,
+)
 
 
 def test_room_code_format() -> None:
@@ -22,3 +31,39 @@ def test_room_routes_are_documented() -> None:
     assert "/api/rooms/{code}/join" in schema["paths"]
     assert "/api/rooms/{code}/leave" in schema["paths"]
     assert "/api/rooms/{code}/members/{user_id}/music-permission" in schema["paths"]
+
+
+@pytest.mark.asyncio
+async def test_get_room_refreshes_previously_loaded_members() -> None:
+    room = SimpleNamespace()
+    session = SimpleNamespace(scalar=AsyncMock(return_value=room))
+
+    result = await get_room(session, "jam-34ch9c")
+
+    statement = session.scalar.await_args.args[0]
+    assert statement.get_execution_options()["populate_existing"] is True
+    assert result is room
+
+
+@pytest.mark.asyncio
+async def test_participant_cannot_change_music_permission() -> None:
+    owner_id = uuid.uuid4()
+    participant_id = uuid.uuid4()
+    room = SimpleNamespace(owner_id=owner_id)
+    participant = SimpleNamespace(id=participant_id)
+    session = AsyncMock()
+
+    with pytest.raises(
+        ForbiddenError,
+        match="Müzik yetkisini yalnızca oda sahibi değiştirebilir.",
+    ):
+        await update_music_permission(
+            session,
+            room,
+            participant,
+            participant_id,
+            can_control_music=False,
+        )
+
+    session.get.assert_not_awaited()
+    session.commit.assert_not_awaited()
