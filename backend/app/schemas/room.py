@@ -17,6 +17,7 @@ class MusicPermissionUpdate(BaseModel):
 class PlaybackUpdate(BaseModel):
     spotify_uri: str = Field(min_length=1, max_length=255)
     spotify_track_id: str = Field(min_length=1, max_length=128)
+    queue_uris: list[str] = Field(min_length=1)
     title: str = Field(min_length=1, max_length=255)
     artist: str = Field(min_length=1, max_length=255)
     album_image_url: str | None = Field(default=None, max_length=2048)
