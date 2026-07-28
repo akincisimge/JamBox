@@ -1,13 +1,15 @@
 import secrets
 import string
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.room import Room, RoomMember
+from app.models.room import Room, RoomMember, RoomPlayback
 from app.models.user import User
+from app.schemas.room import PlaybackUpdate
 from app.services.errors import ConflictError, ForbiddenError, NotFoundError
 
 ROOM_CODE_ALPHABET = string.ascii_uppercase + string.digits
@@ -39,7 +41,10 @@ async def get_room(session: AsyncSession, code: str) -> Room:
     room = await session.scalar(
         select(Room)
         .where(Room.code == code.upper(), Room.is_active.is_(True))
-        .options(selectinload(Room.members).selectinload(RoomMember.user))
+        .options(
+            selectinload(Room.members).selectinload(RoomMember.user),
+            selectinload(Room.playback),
+        )
         .execution_options(populate_existing=True)
     )
     if room is None:
@@ -110,6 +115,54 @@ async def update_music_permission(
         raise NotFoundError("Kullanıcı bu odada değil.")
 
     membership.can_control_music = can_control_music
+    await session.commit()
+    return await get_room(session, room.code)
+
+
+async def update_playback(
+    session: AsyncSession,
+    room: Room,
+    actor: User,
+    payload: PlaybackUpdate,
+) -> Room:
+    membership = await session.get(
+        RoomMember,
+        {"room_id": room.id, "user_id": actor.id},
+    )
+    if membership is None:
+        raise NotFoundError("Kullanıcı bu odada değil.")
+    if not membership.can_control_music:
+        raise ForbiddenError("Bu kullanıcının müzik kontrol yetkisi yok.")
+
+    position_ms = min(payload.position_ms, payload.duration_ms)
+    playback = await session.get(RoomPlayback, room.id)
+    if playback is None:
+        playback = RoomPlayback(
+            room_id=room.id,
+            spotify_uri=payload.spotify_uri,
+            spotify_track_id=payload.spotify_track_id,
+            title=payload.title,
+            artist=payload.artist,
+            album_image_url=payload.album_image_url,
+            duration_ms=payload.duration_ms,
+            position_ms=position_ms,
+            is_playing=payload.is_playing,
+            version=1,
+            changed_at=datetime.now(UTC),
+        )
+        session.add(playback)
+    else:
+        playback.spotify_uri = payload.spotify_uri
+        playback.spotify_track_id = payload.spotify_track_id
+        playback.title = payload.title
+        playback.artist = payload.artist
+        playback.album_image_url = payload.album_image_url
+        playback.duration_ms = payload.duration_ms
+        playback.position_ms = position_ms
+        playback.is_playing = payload.is_playing
+        playback.version += 1
+        playback.changed_at = datetime.now(UTC)
+
     await session.commit()
     return await get_room(session, room.code)
 
