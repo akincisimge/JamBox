@@ -111,7 +111,7 @@ npm test
 
 1. Refactor the prototype and isolate Spotify/domain code.
 2. ✅ Add FastAPI, PostgreSQL, SQLAlchemy, Alembic, and Docker.
-3. Implement Spotify sessions, room operations, invitations, and permissions.
+3. 🚧 Implement Spotify sessions, room operations, invitations, and permissions.
 4. Add WebSocket presence, chat, reactions, queue, and voting.
 5. Add synchronized Spotify playback.
 6. Add the multiplayer game engine and first game: Tic-Tac-Toe.
@@ -122,3 +122,8 @@ npm test
 The first usable release will include Spotify sign-in, real rooms, invite
 links, live presence, chat, reactions, a shared queue, voting, simple
 music-control permission, synchronized playback, and Tic-Tac-Toe.
+
+The backend currently supports user upsert, room creation, room-code lookup,
+joining, leaving, closing, and owner-controlled music permissions. Until
+Spotify authentication moves server-side, protected room requests identify the
+current development user through the `X-User-Id` header.
