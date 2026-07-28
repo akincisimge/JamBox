@@ -3,6 +3,14 @@
 FastAPI backend for JamBox rooms, members, Spotify sessions, real-time events,
 queues, chat, and games.
 
+## Synchronized Spotify playback
+
+Room playback state is stored in PostgreSQL and distributed through the room
+WebSocket. Every listener uses their own authenticated Spotify Web Playback SDK
+device, so Spotify Premium and the OAuth scopes `streaming`,
+`user-read-playback-state`, and `user-modify-playback-state` are required.
+Browsers require each listener to enable audio once after entering a room.
+
 ## Run locally
 
 From the repository root:
