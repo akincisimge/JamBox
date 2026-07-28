@@ -32,8 +32,17 @@ async function playerRequest(
     },
   });
   if (!response.ok) {
-    throw new Error(`Spotify oynatma isteği başarısız: ${response.status}`);
+    const detail = await response.text();
+    throw new Error(
+      `Spotify oynatma isteği başarısız: ${response.status}${
+        detail ? ` (${detail})` : ""
+      }`,
+    );
   }
+}
+
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
 export async function createSpotifyRoomPlayer(
@@ -68,11 +77,29 @@ export async function createSpotifyRoomPlayer(
     });
   });
 
-  await playerRequest("/me/player", {
-    method: "PUT",
-    body: JSON.stringify({ device_ids: [deviceId], play: false }),
-  });
   return { player, deviceId };
+}
+
+export async function activateSpotifyRoomPlayer(
+  player: SpotifyPlayer,
+  deviceId: string,
+): Promise<void> {
+  await player.activateElement();
+
+  let lastError: unknown;
+  for (const delay of [0, 500, 1000, 1500]) {
+    if (delay) await wait(delay);
+    try {
+      await playerRequest("/me/player", {
+        method: "PUT",
+        body: JSON.stringify({ device_ids: [deviceId], play: false }),
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
 }
 
 export function currentPlaybackPosition(playback: JamBoxPlayback): number {
