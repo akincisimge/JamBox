@@ -1,145 +1,23 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-
-type Track = {
-  id: number;
-  title: string;
-  artist: string;
-  addedBy: string;
-  votes: number;
-  art: string;
-};
-
-type SpotifyProfile = {
-  id: string;
-  display_name: string;
-  images?: {
-    url: string;
-  }[];
-};
-
-type SpotifyPlaylist = {
-  id: string;
-  name: string;
-  images?: {
-    url: string;
-  }[];
-  items?: {
-  total: number;
-};
-tracks?: {
-  total: number;
-};
-  owner: {
-    display_name: string;
-  };
-};
-type SpotifyTrack = {
-  id: string;
-  name: string;
-  uri: string;
-  duration_ms: number;
-  artists: {
-    name: string;
-  }[];
-  album: {
-    name: string;
-    images?: {
-      url: string;
-    }[];
-  };
-};
-
-type SpotifyPlaylistItem = {
-  item?: SpotifyTrack | null;
-  track?: SpotifyTrack | null;
-};
-const initialQueue: Track[] = [
-  {
-    id: 1,
-    title: "City Lights",
-    artist: "Luna Park",
-    addedBy: "Maya",
-    votes: 12,
-    art: "sunset",
-  },
-  {
-    id: 2,
-    title: "Ocean Eyes",
-    artist: "Hollow Cove",
-    addedBy: "Alex",
-    votes: 9,
-    art: "ocean",
-  },
-  {
-    id: 3,
-    title: "Golden Hour",
-    artist: "Wildlight",
-    addedBy: "Jordan",
-    votes: 7,
-    art: "gold",
-  },
-];
-
-const icons = {
-  plus: <path d="M12 5v14M5 12h14" />,
-  hash: (
-    <path d="M10 3 8 21M16 3l-2 18M4 9h16M3 15h16" />
-  ),
-  users: (
-    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-  ),
-  play: <path d="m9 7 8 5-8 5V7Z" />,
-  pause: <path d="M9 7v10M15 7v10" />,
-  send: <path d="m4 4 17 8-17 8 4-8-4-8Zm4 8h13" />,
-  arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
-  close: <path d="m6 6 12 12M18 6 6 18" />,
-  copy: (
-    <>
-      <rect x="8" y="8" width="11" height="11" rx="2" />
-      <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
-    </>
-  ),
-};
-
-function Icon({
-  name,
-  size = 22,
-}: {
-  name: keyof typeof icons;
-  size?: number;
-}) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {icons[name]}
-    </svg>
-  );
-}
-
-function Logo() {
-  return (
-    <a className="brand" href="#home" aria-label="JamBox home">
-      <span className="brand-mark">
-        <i />
-        <i />
-        <i />
-        <i />
-      </span>
-      <span>JamBox</span>
-    </a>
-  );
-}
+import { Icon } from "../components/ui/Icon";
+import { Logo } from "../components/ui/Logo";
+import { RoomModal } from "../components/room/RoomModal";
+import { SpotifySignInButton } from "../components/spotify/SpotifySignInButton";
+import {
+  clearSpotifySession,
+  getSpotifyPlaylists,
+  getSpotifyPlaylistTracks,
+  readStoredSpotifyProfile,
+  startSpotifyLogin,
+} from "../lib/spotify/client";
+import { initialMessages, initialQueue } from "../mocks/room";
+import type {
+  SpotifyPlaylist,
+  SpotifyProfile,
+  SpotifyTrack,
+} from "../types/jambox";
 
 export default function JamBoxApp() {
   const [spotifyProfile, setSpotifyProfile] =
@@ -167,65 +45,28 @@ const [playlistError, setPlaylistError] =
   const [roomCode, setRoomCode] = useState("JAM-482");
   const [isPlaying, setIsPlaying] = useState(true);
   const [queue, setQueue] = useState(initialQueue);
-  const [messages, setMessages] = useState([
-    {
-      name: "Maya",
-      text: "This one is perfect ✨",
-      color: "coral",
-    },
-    {
-      name: "Alex",
-      text: "Turn it up!",
-      color: "purple",
-    },
-  ]);
+  const [messages, setMessages] = useState(initialMessages);
   const [message, setMessage] = useState("");
   const [toast, setToast] = useState("");
 
   useEffect(() => {
-    const savedProfile =
-      localStorage.getItem("spotify_profile");
+    const savedProfile = readStoredSpotifyProfile();
+    if (!savedProfile) return;
 
-    if (savedProfile) {
-      try {
-        setSpotifyProfile(JSON.parse(savedProfile));
-      } catch {
-        localStorage.removeItem("spotify_profile");
-      }
-    }
+    const loadProfile = window.setTimeout(
+      () => setSpotifyProfile(savedProfile),
+      0,
+    );
+
+    return () => window.clearTimeout(loadProfile);
   }, []);
 
   useEffect(() => {
-    if (!spotifyProfile) {
-      setSpotifyPlaylists([]);
-      return;
-    }
-
-    const accessToken = localStorage.getItem(
-      "spotify_access_token"
-    );
-
-    if (!accessToken) return;
+    if (!spotifyProfile) return;
 
     const loadPlaylists = async () => {
       try {
-        const response = await fetch(
-          "https://api.spotify.com/v1/me/playlists?limit=12",
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            `Çalma listeleri alınamadı: ${response.status}`
-          );
-        }
-
-        const data = await response.json();
-        setSpotifyPlaylists(data.items ?? []);
+        setSpotifyPlaylists(await getSpotifyPlaylists());
       } catch (error) {
         console.error(
           "Spotify playlist hatası:",
@@ -239,53 +80,15 @@ const [playlistError, setPlaylistError] =
 const openSpotifyPlaylist = async (
   playlist: SpotifyPlaylist
 ) => {
-  const accessToken = localStorage.getItem(
-    "spotify_access_token"
-  );
-
-  if (!accessToken) {
-    setPlaylistError(
-      "Spotify oturumu bulunamadı. Tekrar giriş yapmalısın."
-    );
-    return;
-  }
-
   setSelectedPlaylist(playlist);
   setPlaylistTracks([]);
   setPlaylistError("");
   setPlaylistLoading(true);
 
   try {
-    const response = await fetch(
-      `https://api.spotify.com/v1/playlists/${playlist.id}/items?limit=50`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
+    setPlaylistTracks(
+      await getSpotifyPlaylistTracks(playlist.id)
     );
-
-    if (!response.ok) {
-      throw new Error(
-        `Şarkılar alınamadı: ${response.status}`
-      );
-    }
-
-    const data = await response.json();
-
-    const tracks = (data.items ?? [])
-      .map(
-        (entry: SpotifyPlaylistItem) =>
-          entry.item ?? entry.track
-      )
-      .filter(
-        (
-          track: SpotifyTrack | null | undefined
-        ): track is SpotifyTrack =>
-          Boolean(track?.id)
-      );
-
-    setPlaylistTracks(tracks);
   } catch (error) {
     console.error(
       "Spotify şarkı listesi hatası:",
@@ -300,62 +103,19 @@ const openSpotifyPlaylist = async (
   }
 };
   const loginWithSpotify = async () => {
-    const clientId =
-      process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
-    const redirectUri =
-      process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI;
-
-    if (!clientId || !redirectUri) {
-      alert("Spotify ayarları bulunamadı.");
-      return;
+    try {
+      await startSpotifyLogin();
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Spotify girişi başlatılamadı."
+      );
     }
-
-    const possible =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
-    const codeVerifier = Array.from(
-      crypto.getRandomValues(new Uint8Array(64)),
-      (value) => possible[value % possible.length]
-    ).join("");
-
-    const hashedVerifier = await crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(codeVerifier)
-    );
-
-    const codeChallenge = btoa(
-      String.fromCharCode(
-        ...new Uint8Array(hashedVerifier)
-      )
-    )
-      .replace(/=/g, "")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_");
-
-    localStorage.setItem(
-      "spotify_code_verifier",
-      codeVerifier
-    );
-
-    const params = new URLSearchParams({
-      client_id: clientId,
-      response_type: "code",
-      redirect_uri: redirectUri,
-      code_challenge_method: "S256",
-      code_challenge: codeChallenge,
-      scope:
-        "user-read-private user-read-email playlist-read-private playlist-read-collaborative user-top-read",
-    });
-
-    window.location.href =
-      `https://accounts.spotify.com/authorize?${params.toString()}`;
   };
 
   const logoutFromSpotify = () => {
-    localStorage.removeItem("spotify_access_token");
-    localStorage.removeItem("spotify_refresh_token");
-    localStorage.removeItem("spotify_profile");
-    localStorage.removeItem("spotify_code_verifier");
+    clearSpotifySession();
 
     setSpotifyProfile(null);
     setSpotifyPlaylists([]);
@@ -667,44 +427,14 @@ const openSpotifyPlaylist = async (
           <a href="#how">How it works</a>
         </nav>
 
-        <button
-          className="sign-in"
+        <SpotifySignInButton
+          profile={spotifyProfile}
           onClick={
             spotifyProfile
               ? logoutFromSpotify
               : loginWithSpotify
           }
-        >
-          {spotifyProfile ? (
-            <>
-              {spotifyProfile.images?.[0]?.url ? (
-                <img
-                  src={
-                    spotifyProfile.images[0].url
-                  }
-                  alt={
-                    spotifyProfile.display_name
-                  }
-                  style={{
-                    width: "26px",
-                    height: "26px",
-                    borderRadius: "50%",
-                    objectFit: "cover",
-                  }}
-                />
-              ) : (
-                <Icon name="users" size={19} />
-              )}
-
-              {spotifyProfile.display_name}
-            </>
-          ) : (
-            <>
-              <Icon name="users" size={19} />
-              Spotify ile giriş
-            </>
-          )}
-        </button>
+        />
       </header>
 
       <section className="hero">
@@ -1094,95 +824,15 @@ const openSpotifyPlaylist = async (
       </section>
 
       {modal && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onMouseDown={() => setModal(null)}
-        >
-          <div
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="modal-title"
-            onMouseDown={(event) =>
-              event.stopPropagation()
-            }
-          >
-            <button
-              className="modal-close"
-              onClick={() => setModal(null)}
-              aria-label="Close"
-            >
-              <Icon name="close" />
-            </button>
-
-            <span className="modal-icon">
-              <Icon
-                name={
-                  modal === "create"
-                    ? "plus"
-                    : "hash"
-                }
-                size={28}
-              />
-            </span>
-
-            <p>
-              {modal === "create"
-                ? "START A NEW VIBE"
-                : "STEP INTO THE ROOM"}
-            </p>
-
-            <h2 id="modal-title">
-              {modal === "create"
-                ? "Name your room"
-                : "Enter the room code"}
-            </h2>
-
-            <form onSubmit={submitRoom}>
-              <label>
-                {modal === "create"
-                  ? "Room name"
-                  : "Invite code"}
-
-                <input
-                  autoFocus
-                  value={
-                    modal === "create"
-                      ? roomName
-                      : roomCode
-                  }
-                  onChange={(event) =>
-                    modal === "create"
-                      ? setRoomName(
-                          event.target.value
-                        )
-                      : setRoomCode(
-                          event.target.value.toUpperCase()
-                        )
-                  }
-                  required
-                />
-              </label>
-
-              <button
-                className="primary-button"
-                type="submit"
-              >
-                {modal === "create"
-                  ? "Create room"
-                  : "Join room"}
-
-                <Icon name="arrow" />
-              </button>
-            </form>
-
-            <small>
-              This prototype uses demo tracks—no
-              subscription needed.
-            </small>
-          </div>
-        </div>
+        <RoomModal
+          mode={modal}
+          roomName={roomName}
+          roomCode={roomCode}
+          onRoomNameChange={setRoomName}
+          onRoomCodeChange={setRoomCode}
+          onClose={() => setModal(null)}
+          onSubmit={submitRoom}
+        />
       )}
     </main>
   );
