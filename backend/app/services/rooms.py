@@ -141,6 +141,7 @@ async def update_playback(
             room_id=room.id,
             spotify_uri=payload.spotify_uri,
             spotify_track_id=payload.spotify_track_id,
+            queue_uris=payload.queue_uris,
             title=payload.title,
             artist=payload.artist,
             album_image_url=payload.album_image_url,
@@ -154,6 +155,7 @@ async def update_playback(
     else:
         playback.spotify_uri = payload.spotify_uri
         playback.spotify_track_id = payload.spotify_track_id
+        playback.queue_uris = payload.queue_uris
         playback.title = payload.title
         playback.artist = payload.artist
         playback.album_image_url = payload.album_image_url
