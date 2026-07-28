@@ -1,4 +1,4 @@
-import type { JamBoxPlayback } from "../../types/jambox";
+import type { JamBoxPlayback, SpotifyTrack } from "../../types/jambox";
 import { getSpotifyAccessToken } from "./client";
 
 const SPOTIFY_API_URL = "https://api.spotify.com/v1";
@@ -117,7 +117,8 @@ export async function applyRoomPlayback(
   await playerRequest(`/me/player/play?device_id=${encodeURIComponent(deviceId)}`, {
     method: "PUT",
     body: JSON.stringify({
-      uris: [playback.spotify_uri],
+      uris: playback.queue_uris,
+      offset: { uri: playback.spotify_uri },
       position_ms: positionMs,
     }),
   });
@@ -126,4 +127,39 @@ export async function applyRoomPlayback(
       method: "PUT",
     });
   }
+}
+
+export async function skipSpotifyPlayback(
+  direction: "previous" | "next",
+  deviceId: string,
+): Promise<{
+  track: SpotifyTrack;
+  positionMs: number;
+  isPlaying: boolean;
+}> {
+  await playerRequest(
+    `/me/player/${direction}?device_id=${encodeURIComponent(deviceId)}`,
+    { method: "POST" },
+  );
+  await wait(650);
+
+  const response = await fetch(`${SPOTIFY_API_URL}/me/player`, {
+    headers: { Authorization: `Bearer ${await getSpotifyAccessToken()}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Spotify şarkı bilgisi alınamadı: ${response.status}`);
+  }
+  const state = (await response.json()) as {
+    item?: SpotifyTrack | null;
+    progress_ms?: number | null;
+    is_playing?: boolean;
+  };
+  if (!state.item?.id) {
+    throw new Error("Spotify yeni şarkı bilgisini henüz göndermedi.");
+  }
+  return {
+    track: state.item,
+    positionMs: state.progress_ms ?? 0,
+    isPlaying: state.is_playing ?? true,
+  };
 }
