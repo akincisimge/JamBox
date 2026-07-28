@@ -17,6 +17,17 @@ The API will be available at:
 - Health: `http://localhost:8000/api/health`
 - Swagger: `http://localhost:8000/docs`
 
+## Room API development flow
+
+1. Create or update a user with `POST /api/users`.
+2. Copy the returned `id`.
+3. For protected room endpoints, enter that UUID in the `X-User-Id` header.
+4. Create a room with `POST /api/rooms`.
+5. Share the returned `JAM-XXXXXX` code with another user.
+
+The explicit header is temporary. Spotify server-side authentication will
+replace it with a secure session in the authentication milestone.
+
 Apply migrations:
 
 ```bash

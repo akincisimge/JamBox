@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -7,6 +10,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 from app.models.base import TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class Room(TimestampMixin, Base):
@@ -29,7 +35,7 @@ class Room(TimestampMixin, Base):
         nullable=True,
     )
 
-    members: Mapped[list["RoomMember"]] = relationship(
+    members: Mapped[list[RoomMember]] = relationship(
         back_populates="room",
         cascade="all, delete-orphan",
     )
@@ -50,3 +56,4 @@ class RoomMember(TimestampMixin, Base):
     can_control_music: Mapped[bool] = mapped_column(Boolean, default=False)
 
     room: Mapped[Room] = relationship(back_populates="members")
+    user: Mapped[User] = relationship()
