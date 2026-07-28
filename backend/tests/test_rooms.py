@@ -84,6 +84,7 @@ async def test_member_without_permission_cannot_control_playback() -> None:
     payload = PlaybackUpdate(
         spotify_uri="spotify:track:test",
         spotify_track_id="test",
+        queue_uris=["spotify:track:test"],
         title="Test Track",
         artist="Test Artist",
         duration_ms=180_000,
