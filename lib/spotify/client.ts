@@ -107,9 +107,9 @@ export async function getSpotifyPlaylistTracks(
 
 export async function startSpotifyLogin(): Promise<void> {
   const clientId = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
-  const redirectUri = process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI;
+  const redirectUri = `${window.location.origin}/callback`;
 
-  if (!clientId || !redirectUri) {
+  if (!clientId) {
     throw new Error("Spotify ayarları bulunamadı.");
   }
 
