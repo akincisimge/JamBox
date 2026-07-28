@@ -65,6 +65,7 @@ export type JamBoxRoomMember = {
 export type JamBoxPlayback = {
   spotify_uri: string;
   spotify_track_id: string;
+  queue_uris: string[];
   title: string;
   artist: string;
   album_image_url: string | null;
