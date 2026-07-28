@@ -159,6 +159,8 @@ a { color: inherit; text-decoration: none; }
 .modal input { width: 100%; color: var(--text); background: #090d1e; border: 1px solid var(--border); border-radius: 14px; padding: 16px; outline: 0; }
 .modal input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(124,58,237,.18); }
 .modal form .primary-button { width: 100%; margin-top: 18px; }.modal > small { display: block; text-align: center; margin-top: 20px; color: var(--muted); }
+.modal form .primary-button:disabled { cursor: wait; opacity: .65; transform: none; }
+.modal-error { margin: 14px 0 0; color: #ff8fa3; font-size: 13px; line-height: 1.45; }
 
 .room-page { min-height: 100vh; overflow-x: hidden; overflow-y: auto; }
 .room-topbar { grid-template-columns: 1fr auto auto auto; gap: 24px; border-bottom: 1px solid var(--border); width: 100%; padding: 0 max(40px, calc((100% - 1480px)/2)); }
