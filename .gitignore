@@ -69,3 +69,14 @@ pnpm-debug.log*
 /.openai/*
 !/.openai/hosting.json
 .npmrc
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+
+# Local database volumes and editor state
+.idea/
+.vscode/
