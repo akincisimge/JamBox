@@ -51,7 +51,8 @@ node_modules/
 # Build outputs
 .next/
 dist/
-build/
+/build/*
+!/build/sites-vite-plugin.ts
 .vinext/
 .sites-runtime/
 .wrangler/
@@ -65,5 +66,6 @@ pnpm-debug.log*
 # macOS
 .DS_Store
 # Local configuration
-.openai/
+/.openai/*
+!/.openai/hosting.json
 .npmrc
