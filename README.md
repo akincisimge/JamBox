@@ -55,8 +55,8 @@ db/                  Existing Cloudflare D1/Drizzle starter support
 tests/               Build and rendering checks
 ```
 
-The FastAPI application will be introduced under `backend/` in the next
-milestone.
+The FastAPI application lives under `backend/`. It includes PostgreSQL models,
+Alembic migrations, a health endpoint, tests, and Docker configuration.
 
 ## Local setup
 
@@ -87,6 +87,17 @@ npm ci
 npm run dev
 ```
 
+Start the backend and PostgreSQL in a second terminal:
+
+```bash
+docker compose up --build
+```
+
+Backend endpoints:
+
+- Health: `http://localhost:8000/api/health`
+- Swagger: `http://localhost:8000/docs`
+
 ## Commands
 
 ```bash
@@ -99,8 +110,8 @@ npm test
 ## Delivery milestones
 
 1. Refactor the prototype and isolate Spotify/domain code.
-2. Add FastAPI, PostgreSQL, SQLAlchemy, Alembic, and Docker.
-3. Implement users, Spotify sessions, rooms, invitations, and permissions.
+2. ✅ Add FastAPI, PostgreSQL, SQLAlchemy, Alembic, and Docker.
+3. Implement Spotify sessions, room operations, invitations, and permissions.
 4. Add WebSocket presence, chat, reactions, queue, and voting.
 5. Add synchronized Spotify playback.
 6. Add the multiplayer game engine and first game: Tic-Tac-Toe.
