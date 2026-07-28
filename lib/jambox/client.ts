@@ -84,6 +84,69 @@ export async function joinJamBoxRoom(
   );
 }
 
+export async function getJamBoxRoom(code: string): Promise<JamBoxRoom> {
+  return apiFetch<JamBoxRoom>(
+    `/rooms/${encodeURIComponent(code.trim().toUpperCase())}`,
+  );
+}
+
+type RoomSocketHandlers = {
+  onRoomUpdated: () => void;
+  onRoomClosed: () => void;
+};
+
+export function connectToJamBoxRoom(
+  userId: string,
+  code: string,
+  handlers: RoomSocketHandlers,
+): () => void {
+  const socketUrl = new URL(API_URL);
+  socketUrl.protocol = socketUrl.protocol === "https:" ? "wss:" : "ws:";
+  socketUrl.pathname = `${socketUrl.pathname}/rooms/${encodeURIComponent(
+    code,
+  )}/ws`;
+  socketUrl.search = new URLSearchParams({ user_id: userId }).toString();
+
+  let socket: WebSocket | null = new WebSocket(socketUrl);
+  let reconnectTimer: number | undefined;
+  let stopped = false;
+
+  const connect = () => {
+    socket = new WebSocket(socketUrl);
+    socket.addEventListener("message", handleMessage);
+    socket.addEventListener("close", handleClose);
+  };
+
+  const handleMessage = (event: MessageEvent<string>) => {
+    const message = JSON.parse(event.data) as { type?: string };
+
+    if (message.type === "room_updated") {
+      handlers.onRoomUpdated();
+    }
+    if (message.type === "room_closed") {
+      handlers.onRoomClosed();
+    }
+  };
+
+  const handleClose = () => {
+    if (!stopped) {
+      reconnectTimer = window.setTimeout(connect, 1500);
+    }
+  };
+
+  socket.addEventListener("message", handleMessage);
+  socket.addEventListener("close", handleClose);
+
+  return () => {
+    stopped = true;
+    window.clearTimeout(reconnectTimer);
+    socket?.removeEventListener("message", handleMessage);
+    socket?.removeEventListener("close", handleClose);
+    socket?.close();
+    socket = null;
+  };
+}
+
 export async function leaveJamBoxRoom(
   userId: string,
   code: string,

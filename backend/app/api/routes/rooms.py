@@ -1,19 +1,55 @@
 import uuid
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Response, WebSocket, WebSocketDisconnect, status
 
 from app.api.dependencies import CurrentUser, DatabaseSession
+from app.models.room import RoomMember
+from app.realtime.rooms import room_connections
 from app.schemas.room import MusicPermissionUpdate, RoomCreate, RoomResponse
+from app.services.errors import NotFoundError
 from app.services.rooms import (
     close_room,
     create_room,
     get_room,
+    get_user,
     join_room,
     leave_room,
     update_music_permission,
 )
 
 router = APIRouter(prefix="/rooms")
+
+
+@router.websocket("/{code}/ws")
+async def room_updates(
+    websocket: WebSocket,
+    code: str,
+    user_id: uuid.UUID,
+    session: DatabaseSession,
+) -> None:
+    try:
+        room = await get_room(session, code)
+        await get_user(session, user_id)
+    except NotFoundError:
+        await websocket.close(code=4404, reason="Oda veya kullanıcı bulunamadı.")
+        return
+
+    membership = await session.get(
+        RoomMember,
+        {"room_id": room.id, "user_id": user_id},
+    )
+    if membership is None:
+        await websocket.close(code=4403, reason="Kullanıcı bu odada değil.")
+        return
+
+    await room_connections.connect(room.code, websocket)
+    await websocket.send_json({"type": "connected"})
+
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        room_connections.disconnect(room.code, websocket)
 
 
 @router.post("", response_model=RoomResponse, status_code=status.HTTP_201_CREATED)
@@ -40,6 +76,7 @@ async def join_existing_room(
 ) -> RoomResponse:
     room = await get_room(session, code)
     updated_room = await join_room(session, room, current_user)
+    await room_connections.broadcast(room.code, {"type": "room_updated"})
     return RoomResponse.model_validate(updated_room)
 
 
@@ -51,6 +88,7 @@ async def leave_existing_room(
 ) -> Response:
     room = await get_room(session, code)
     await leave_room(session, room, current_user)
+    await room_connections.broadcast(room.code, {"type": "room_updated"})
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -70,6 +108,7 @@ async def change_music_permission(
         user_id,
         payload.can_control_music,
     )
+    await room_connections.broadcast(room.code, {"type": "room_updated"})
     return RoomResponse.model_validate(updated_room)
 
 
@@ -81,4 +120,5 @@ async def delete_room(
 ) -> Response:
     room = await get_room(session, code)
     await close_room(session, room, current_user)
+    await room_connections.broadcast(room.code, {"type": "room_closed"})
     return Response(status_code=status.HTTP_204_NO_CONTENT)

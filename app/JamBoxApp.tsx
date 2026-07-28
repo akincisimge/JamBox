@@ -7,7 +7,9 @@ import { RoomModal } from "../components/room/RoomModal";
 import { SpotifySignInButton } from "../components/spotify/SpotifySignInButton";
 import {
   closeJamBoxRoom,
+  connectToJamBoxRoom,
   createJamBoxRoom,
+  getJamBoxRoom,
   JamBoxApiError,
   joinJamBoxRoom,
   leaveJamBoxRoom,
@@ -90,6 +92,29 @@ const [playlistError, setPlaylistError] =
 
     loadPlaylists();
   }, [spotifyProfile]);
+
+  const activeRoomCode = activeRoom?.code;
+
+  useEffect(() => {
+    if (view !== "room" || !activeRoomCode || !jamBoxUserId) {
+      return;
+    }
+
+    return connectToJamBoxRoom(jamBoxUserId, activeRoomCode, {
+      onRoomUpdated: async () => {
+        try {
+          setActiveRoom(await getJamBoxRoom(activeRoomCode));
+        } catch (error) {
+          console.error("Oda güncellenemedi:", error);
+        }
+      },
+      onRoomClosed: () => {
+        setActiveRoom(null);
+        setView("home");
+        setToast("Oda sahibi odayı kapattı.");
+      },
+    });
+  }, [activeRoomCode, jamBoxUserId, view]);
 const openSpotifyPlaylist = async (
   playlist: SpotifyPlaylist
 ) => {
