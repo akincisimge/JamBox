@@ -28,6 +28,7 @@ import {
   applyRoomPlayback,
   createSpotifyRoomPlayer,
   currentPlaybackPosition,
+  skipSpotifyPlayback,
 } from "../lib/spotify/playback";
 import { initialMessages, initialQueue } from "../mocks/room";
 import type {
@@ -166,6 +167,9 @@ const [playlistError, setPlaylistError] =
   }, [spotifyProfile, view]);
 
   const playback = activeRoom?.playback ?? null;
+  const canControlMusic =
+    activeRoom?.members.find((member) => member.user_id === jamBoxUserId)
+      ?.can_control_music ?? false;
   const lastAppliedPlaybackRef = useRef("");
 
   useEffect(() => {
@@ -316,6 +320,7 @@ const openSpotifyPlaylist = async (
       const room = await updateJamBoxPlayback(jamBoxUserId, activeRoom.code, {
         spotify_uri: track.uri,
         spotify_track_id: track.id,
+        queue_uris: playlistTracks.map((item) => item.uri),
         title: track.name,
         artist: track.artists.map((artist) => artist.name).join(", "),
         album_image_url: track.album.images?.[0]?.url ?? null,
@@ -368,6 +373,7 @@ const openSpotifyPlaylist = async (
         await updateJamBoxPlayback(jamBoxUserId, activeRoom.code, {
           spotify_uri: current.spotify_uri,
           spotify_track_id: current.spotify_track_id,
+          queue_uris: current.queue_uris,
           title: current.title,
           artist: current.artist,
           album_image_url: current.album_image_url,
@@ -381,6 +387,37 @@ const openSpotifyPlaylist = async (
         error instanceof JamBoxApiError
           ? error.message
           : "Oynatma durumu değiştirilemedi.",
+      );
+    }
+  }
+
+  async function skipRoomTrack(direction: "previous" | "next") {
+    if (!activeRoom || !jamBoxUserId || !spotifyDeviceId) return;
+    if (!canControlMusic) {
+      setToast("Bu odada müzik kontrol yetkin yok.");
+      return;
+    }
+    try {
+      const state = await skipSpotifyPlayback(direction, spotifyDeviceId);
+      const track = state.track;
+      setActiveRoom(
+        await updateJamBoxPlayback(jamBoxUserId, activeRoom.code, {
+          spotify_uri: track.uri,
+          spotify_track_id: track.id,
+          queue_uris: activeRoom.playback?.queue_uris ?? [track.uri],
+          title: track.name,
+          artist: track.artists.map((artist) => artist.name).join(", "),
+          album_image_url: track.album.images?.[0]?.url ?? null,
+          duration_ms: track.duration_ms,
+          position_ms: state.positionMs,
+          is_playing: state.isPlaying,
+        }),
+      );
+    } catch (error) {
+      setToast(
+        error instanceof Error
+          ? error.message
+          : "Spotify şarkısı değiştirilemedi.",
       );
     }
   }
@@ -549,7 +586,11 @@ const openSpotifyPlaylist = async (
             </div>
 
             <div className="player-controls">
-              <button aria-label="Previous track">
+              <button
+                onClick={() => skipRoomTrack("previous")}
+                disabled={!playback || !roomAudioEnabled || !canControlMusic}
+                aria-label="Previous track"
+              >
                 ‹
               </button>
 
@@ -567,7 +608,11 @@ const openSpotifyPlaylist = async (
                 />
               </button>
 
-              <button aria-label="Next track">
+              <button
+                onClick={() => skipRoomTrack("next")}
+                disabled={!playback || !roomAudioEnabled || !canControlMusic}
+                aria-label="Next track"
+              >
                 ›
               </button>
             </div>
