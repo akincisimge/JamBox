@@ -1,0 +1,121 @@
+import secrets
+import string
+import uuid
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.models.room import Room, RoomMember
+from app.models.user import User
+from app.services.errors import ConflictError, ForbiddenError, NotFoundError
+
+ROOM_CODE_ALPHABET = string.ascii_uppercase + string.digits
+ROOM_CODE_LENGTH = 6
+
+
+def generate_room_code() -> str:
+    suffix = "".join(secrets.choice(ROOM_CODE_ALPHABET) for _ in range(ROOM_CODE_LENGTH))
+    return f"JAM-{suffix}"
+
+
+async def _unique_room_code(session: AsyncSession) -> str:
+    for _ in range(10):
+        code = generate_room_code()
+        existing = await session.scalar(select(Room.id).where(Room.code == code))
+        if existing is None:
+            return code
+    raise ConflictError("Benzersiz oda kodu üretilemedi. Lütfen tekrar deneyin.")
+
+
+async def get_user(session: AsyncSession, user_id: uuid.UUID) -> User:
+    user = await session.get(User, user_id)
+    if user is None:
+        raise NotFoundError("Kullanıcı bulunamadı.")
+    return user
+
+
+async def get_room(session: AsyncSession, code: str) -> Room:
+    room = await session.scalar(
+        select(Room)
+        .where(Room.code == code.upper(), Room.is_active.is_(True))
+        .options(selectinload(Room.members).selectinload(RoomMember.user))
+    )
+    if room is None:
+        raise NotFoundError("Aktif oda bulunamadı.")
+    return room
+
+
+async def create_room(session: AsyncSession, owner: User, name: str) -> Room:
+    room = Room(
+        code=await _unique_room_code(session),
+        name=name.strip(),
+        owner_id=owner.id,
+    )
+    room.members.append(
+        RoomMember(
+            user_id=owner.id,
+            is_owner=True,
+            can_control_music=True,
+        )
+    )
+    session.add(room)
+    await session.commit()
+    return await get_room(session, room.code)
+
+
+async def join_room(session: AsyncSession, room: Room, user: User) -> Room:
+    membership = await session.get(
+        RoomMember,
+        {"room_id": room.id, "user_id": user.id},
+    )
+    if membership is None:
+        session.add(RoomMember(room_id=room.id, user_id=user.id))
+        await session.commit()
+    return await get_room(session, room.code)
+
+
+async def leave_room(session: AsyncSession, room: Room, user: User) -> None:
+    membership = await session.get(
+        RoomMember,
+        {"room_id": room.id, "user_id": user.id},
+    )
+    if membership is None:
+        raise NotFoundError("Kullanıcı bu odada değil.")
+    if membership.is_owner:
+        raise ConflictError("Oda sahibi odadan ayrılamaz; odayı kapatmalıdır.")
+
+    await session.delete(membership)
+    await session.commit()
+
+
+async def update_music_permission(
+    session: AsyncSession,
+    room: Room,
+    actor: User,
+    member_user_id: uuid.UUID,
+    can_control_music: bool,
+) -> Room:
+    if room.owner_id != actor.id:
+        raise ForbiddenError("Müzik yetkisini yalnızca oda sahibi değiştirebilir.")
+    if member_user_id == room.owner_id and not can_control_music:
+        raise ConflictError("Oda sahibinin müzik kontrol yetkisi kaldırılamaz.")
+
+    membership = await session.get(
+        RoomMember,
+        {"room_id": room.id, "user_id": member_user_id},
+    )
+    if membership is None:
+        raise NotFoundError("Kullanıcı bu odada değil.")
+
+    membership.can_control_music = can_control_music
+    await session.commit()
+    return await get_room(session, room.code)
+
+
+async def close_room(session: AsyncSession, room: Room, actor: User) -> None:
+    if room.owner_id != actor.id:
+        raise ForbiddenError("Odayı yalnızca oda sahibi kapatabilir.")
+
+    room.is_active = False
+    await session.commit()
