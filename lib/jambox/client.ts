@@ -102,7 +102,7 @@ export function connectToJamBoxRoom(
   code: string,
   handlers: RoomSocketHandlers,
 ): () => void {
-  const socketUrl = new URL(API_URL);
+  const socketUrl = new URL(API_URL, window.location.origin);
   socketUrl.protocol = socketUrl.protocol === "https:" ? "wss:" : "ws:";
   socketUrl.pathname = `${socketUrl.pathname}/rooms/${encodeURIComponent(
     code,
