@@ -24,6 +24,7 @@ import {
   startSpotifyLogin,
 } from "../lib/spotify/client";
 import {
+  activateSpotifyRoomPlayer,
   applyRoomPlayback,
   createSpotifyRoomPlayer,
   currentPlaybackPosition,
@@ -305,7 +306,12 @@ const openSpotifyPlaylist = async (
   async function playTrackTogether(track: SpotifyTrack) {
     if (!activeRoom || !jamBoxUserId) return;
     try {
-      await spotifyPlayerRef.current?.activateElement();
+      if (spotifyPlayerRef.current && spotifyDeviceId) {
+        await activateSpotifyRoomPlayer(
+          spotifyPlayerRef.current,
+          spotifyDeviceId,
+        );
+      }
       setRoomAudioEnabled(true);
       const room = await updateJamBoxPlayback(jamBoxUserId, activeRoom.code, {
         spotify_uri: track.uri,
@@ -336,7 +342,10 @@ const openSpotifyPlaylist = async (
       return;
     }
     try {
-      await spotifyPlayerRef.current.activateElement();
+      await activateSpotifyRoomPlayer(
+        spotifyPlayerRef.current,
+        spotifyDeviceId,
+      );
       setRoomAudioEnabled(true);
       if (playback) {
         lastAppliedPlaybackRef.current = "";
