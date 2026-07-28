@@ -12,6 +12,7 @@ export const spotifyStorage = {
   profile: "spotify_profile",
   accessToken: "spotify_access_token",
   refreshToken: "spotify_refresh_token",
+  expiresAt: "spotify_expires_at",
   codeVerifier: "spotify_code_verifier",
 } as const;
 
@@ -27,17 +28,55 @@ export function readStoredSpotifyProfile(): SpotifyProfile | null {
   }
 }
 
-function getAccessToken(): string {
+export async function getSpotifyAccessToken(): Promise<string> {
   const accessToken = localStorage.getItem(spotifyStorage.accessToken);
   if (!accessToken) {
     throw new Error("Spotify oturumu bulunamadı. Tekrar giriş yapmalısın.");
   }
-  return accessToken;
+
+  const expiresAt = Number(localStorage.getItem(spotifyStorage.expiresAt) ?? 0);
+  if (!expiresAt || Date.now() < expiresAt - 30_000) {
+    return accessToken;
+  }
+
+  const refreshToken = localStorage.getItem(spotifyStorage.refreshToken);
+  const clientId = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
+  if (!refreshToken || !clientId) {
+    throw new Error("Spotify oturumunun süresi doldu. Tekrar giriş yapmalısın.");
+  }
+
+  const response = await fetch(`${SPOTIFY_ACCOUNTS_URL}/api/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error("Spotify oturumu yenilenemedi. Tekrar giriş yapmalısın.");
+  }
+
+  const token = (await response.json()) as {
+    access_token: string;
+    expires_in: number;
+    refresh_token?: string;
+  };
+  localStorage.setItem(spotifyStorage.accessToken, token.access_token);
+  localStorage.setItem(
+    spotifyStorage.expiresAt,
+    String(Date.now() + token.expires_in * 1000),
+  );
+  if (token.refresh_token) {
+    localStorage.setItem(spotifyStorage.refreshToken, token.refresh_token);
+  }
+  return token.access_token;
 }
 
 async function spotifyFetch<T>(path: string): Promise<T> {
   const response = await fetch(`${SPOTIFY_API_URL}${path}`, {
-    headers: { Authorization: `Bearer ${getAccessToken()}` },
+    headers: { Authorization: `Bearer ${await getSpotifyAccessToken()}` },
   });
 
   if (!response.ok) {
@@ -101,7 +140,7 @@ export async function startSpotifyLogin(): Promise<void> {
     code_challenge_method: "S256",
     code_challenge: codeChallenge,
     scope:
-      "user-read-private user-read-email playlist-read-private playlist-read-collaborative user-top-read",
+      "streaming user-read-private user-read-email user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative user-top-read",
   });
 
   window.location.href = `${SPOTIFY_ACCOUNTS_URL}/authorize?${params}`;
