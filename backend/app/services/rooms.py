@@ -40,6 +40,7 @@ async def get_room(session: AsyncSession, code: str) -> Room:
         select(Room)
         .where(Room.code == code.upper(), Room.is_active.is_(True))
         .options(selectinload(Room.members).selectinload(RoomMember.user))
+        .execution_options(populate_existing=True)
     )
     if room is None:
         raise NotFoundError("Aktif oda bulunamadı.")
