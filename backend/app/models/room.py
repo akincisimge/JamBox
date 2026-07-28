@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -39,6 +39,11 @@ class Room(TimestampMixin, Base):
         back_populates="room",
         cascade="all, delete-orphan",
     )
+    playback: Mapped[RoomPlayback | None] = relationship(
+        back_populates="room",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class RoomMember(TimestampMixin, Base):
@@ -57,3 +62,24 @@ class RoomMember(TimestampMixin, Base):
 
     room: Mapped[Room] = relationship(back_populates="members")
     user: Mapped[User] = relationship()
+
+
+class RoomPlayback(Base):
+    __tablename__ = "room_playback"
+
+    room_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("rooms.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    spotify_uri: Mapped[str] = mapped_column(String(255))
+    spotify_track_id: Mapped[str] = mapped_column(String(128))
+    title: Mapped[str] = mapped_column(String(255))
+    artist: Mapped[str] = mapped_column(String(255))
+    album_image_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    duration_ms: Mapped[int] = mapped_column(Integer)
+    position_ms: Mapped[int] = mapped_column(Integer, default=0)
+    is_playing: Mapped[bool] = mapped_column(Boolean, default=False)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    room: Mapped[Room] = relationship(back_populates="playback")
