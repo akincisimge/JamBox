@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -73,6 +73,7 @@ class RoomPlayback(Base):
     )
     spotify_uri: Mapped[str] = mapped_column(String(255))
     spotify_track_id: Mapped[str] = mapped_column(String(128))
+    queue_uris: Mapped[list[str]] = mapped_column(JSON, default=list)
     title: Mapped[str] = mapped_column(String(255))
     artist: Mapped[str] = mapped_column(String(255))
     album_image_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
