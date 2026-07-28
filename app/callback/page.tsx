@@ -48,6 +48,10 @@ export default function SpotifyCallbackPage() {
           "spotify_access_token",
           tokenData.access_token
         );
+        localStorage.setItem(
+          "spotify_expires_at",
+          String(Date.now() + tokenData.expires_in * 1000)
+        );
 
         if (tokenData.refresh_token) {
           localStorage.setItem(
