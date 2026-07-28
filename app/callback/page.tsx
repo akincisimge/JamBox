@@ -15,9 +15,9 @@ export default function SpotifyCallbackPage() {
         const code = new URLSearchParams(window.location.search).get("code");
         const codeVerifier = localStorage.getItem("spotify_code_verifier");
         const clientId = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
-        const redirectUri = process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI;
+        const redirectUri = `${window.location.origin}/callback`;
 
-        if (!code || !codeVerifier || !clientId || !redirectUri) {
+        if (!code || !codeVerifier || !clientId) {
           throw new Error("Giriş bilgileri eksik.");
         }
 
