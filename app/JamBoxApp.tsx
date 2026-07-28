@@ -6,6 +6,14 @@ import { Logo } from "../components/ui/Logo";
 import { RoomModal } from "../components/room/RoomModal";
 import { SpotifySignInButton } from "../components/spotify/SpotifySignInButton";
 import {
+  closeJamBoxRoom,
+  createJamBoxRoom,
+  JamBoxApiError,
+  joinJamBoxRoom,
+  leaveJamBoxRoom,
+  registerJamBoxUser,
+} from "../lib/jambox/client";
+import {
   clearSpotifySession,
   getSpotifyPlaylists,
   getSpotifyPlaylistTracks,
@@ -14,6 +22,7 @@ import {
 } from "../lib/spotify/client";
 import { initialMessages, initialQueue } from "../mocks/room";
 import type {
+  JamBoxRoom,
   SpotifyPlaylist,
   SpotifyProfile,
   SpotifyTrack,
@@ -43,6 +52,10 @@ const [playlistError, setPlaylistError] =
   const [roomName, setRoomName] =
     useState("Friday Night Mix");
   const [roomCode, setRoomCode] = useState("JAM-482");
+  const [activeRoom, setActiveRoom] = useState<JamBoxRoom | null>(null);
+  const [jamBoxUserId, setJamBoxUserId] = useState("");
+  const [roomError, setRoomError] = useState("");
+  const [roomSubmitting, setRoomSubmitting] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [queue, setQueue] = useState(initialQueue);
   const [messages, setMessages] = useState(initialMessages);
@@ -127,22 +140,69 @@ const openSpotifyPlaylist = async (
   );
 
   function openRoom(kind: "create" | "join") {
+    setRoomError("");
     setModal(kind);
   }
 
-  function submitRoom(
+  async function submitRoom(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
-    if (modal === "create") {
-      setRoomCode(
-        `JAM-${Math.floor(100 + Math.random() * 900)}`
-      );
+    if (!spotifyProfile) {
+      setRoomError("Önce Spotify ile giriş yapmalısın.");
+      return;
     }
 
-    setModal(null);
-    setView("room");
+    setRoomSubmitting(true);
+    setRoomError("");
+
+    try {
+      const user = await registerJamBoxUser(spotifyProfile);
+      const room =
+        modal === "create"
+          ? await createJamBoxRoom(user.id, roomName)
+          : await joinJamBoxRoom(user.id, roomCode);
+
+      setJamBoxUserId(user.id);
+      setActiveRoom(room);
+      setRoomName(room.name);
+      setRoomCode(room.code);
+      setModal(null);
+      setView("room");
+    } catch (error) {
+      setRoomError(
+        error instanceof JamBoxApiError
+          ? error.message
+          : "Backend bağlantısı kurulamadı. Docker servislerini kontrol et.",
+      );
+    } finally {
+      setRoomSubmitting(false);
+    }
+  }
+
+  async function exitRoom() {
+    if (!activeRoom || !jamBoxUserId) {
+      setView("home");
+      return;
+    }
+
+    try {
+      if (activeRoom.owner_id === jamBoxUserId) {
+        await closeJamBoxRoom(jamBoxUserId, activeRoom.code);
+      } else {
+        await leaveJamBoxRoom(jamBoxUserId, activeRoom.code);
+      }
+
+      setActiveRoom(null);
+      setView("home");
+    } catch (error) {
+      setToast(
+        error instanceof JamBoxApiError
+          ? error.message
+          : "Odadan çıkılamadı.",
+      );
+    }
   }
 
   function vote(id: number) {
@@ -205,9 +265,11 @@ const openSpotifyPlaylist = async (
 
           <button
             className="ghost-button leave-button"
-            onClick={() => setView("home")}
+            onClick={exitRoom}
           >
-            Leave room
+            {activeRoom?.owner_id === jamBoxUserId
+              ? "Close room"
+              : "Leave room"}
           </button>
         </header>
 
@@ -215,23 +277,22 @@ const openSpotifyPlaylist = async (
           <aside className="listeners-panel panel">
             <div className="section-heading">
               <h2>Listeners</h2>
-              <span>4 online</span>
+              <span>{activeRoom?.members.length ?? 0} online</span>
             </div>
 
-            {[
-              ["SA", "Simge", "Host", "purple"],
-              ["MY", "Maya", "Listening", "coral"],
-              ["AL", "Alex", "Listening", "blue"],
-              ["JR", "Jordan", "Listening", "cream"],
-            ].map(([initial, name, status, color]) => (
-              <div className="listener" key={name}>
-                <span className={`avatar ${color}`}>
-                  {initial}
+            {(activeRoom?.members ?? []).map((member, index) => (
+              <div className="listener" key={member.user_id}>
+                <span
+                  className={`avatar ${
+                    ["purple", "coral", "blue", "cream"][index % 4]
+                  }`}
+                >
+                  {member.user.display_name.slice(0, 2).toUpperCase()}
                 </span>
 
                 <span>
-                  <strong>{name}</strong>
-                  <small>{status}</small>
+                  <strong>{member.user.display_name}</strong>
+                  <small>{member.is_owner ? "Host" : "Listening"}</small>
                 </span>
 
                 <i className="online-dot" />
@@ -828,6 +889,8 @@ const openSpotifyPlaylist = async (
           mode={modal}
           roomName={roomName}
           roomCode={roomCode}
+          error={roomError}
+          isSubmitting={roomSubmitting}
           onRoomNameChange={setRoomName}
           onRoomCodeChange={setRoomCode}
           onClose={() => setModal(null)}

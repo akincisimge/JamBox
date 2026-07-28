@@ -5,6 +5,8 @@ type RoomModalProps = {
   mode: "create" | "join";
   roomName: string;
   roomCode: string;
+  error: string;
+  isSubmitting: boolean;
   onRoomNameChange: (value: string) => void;
   onRoomCodeChange: (value: string) => void;
   onClose: () => void;
@@ -15,6 +17,8 @@ export function RoomModal({
   mode,
   roomName,
   roomCode,
+  error,
+  isSubmitting,
   onRoomNameChange,
   onRoomCodeChange,
   onClose,
@@ -63,13 +67,27 @@ export function RoomModal({
             />
           </label>
 
-          <button className="primary-button" type="submit">
-            {isCreating ? "Create room" : "Join room"}
+          <button
+            className="primary-button"
+            type="submit"
+            disabled={isSubmitting}
+          >
+            {isSubmitting
+              ? "Connecting…"
+              : isCreating
+                ? "Create room"
+                : "Join room"}
             <Icon name="arrow" />
           </button>
+
+          {error && (
+            <p className="modal-error" role="alert">
+              {error}
+            </p>
+          )}
         </form>
 
-        <small>This prototype uses demo tracks—no subscription needed.</small>
+        <small>Share the room code with the people you want to invite.</small>
       </div>
     </div>
   );
