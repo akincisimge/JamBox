@@ -1419,3 +1419,8 @@ a { color: inherit; text-decoration: none; }
   border-color:color-mix(in srgb,var(--ambient-b) 22%,rgba(255,255,255,.1));
   transition:background 900ms ease,border-color 900ms ease;
 }
+
+
+/* MODAL LAYER FIX */
+.room-page>.music-drawer-toggle{z-index:60!important}
+.song-picker-backdrop{z-index:200}
