@@ -29,6 +29,9 @@ from app.services.rooms import (
     join_room,
     leave_room,
     make_chess_move,
+    offer_or_accept_chess_draw,
+    resign_chess_game,
+    restart_chess_game,
     toggle_message_reaction,
     update_music_permission,
     update_playback,
@@ -147,6 +150,30 @@ async def add_test_chess_opponent(code: str, session: DatabaseSession, current_u
 async def accept_chess_invite(code: str, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
     room = await get_room(session, code)
     updated_room = await join_chess_game(session, room, current_user)
+    await room_connections.broadcast(room.code, {"type": "chess_updated"})
+    return RoomResponse.model_validate(updated_room)
+
+
+@router.post("/{code}/chess/restart", response_model=RoomResponse)
+async def restart_chess_table(code: str, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
+    room = await get_room(session, code)
+    updated_room = await restart_chess_game(session, room, current_user)
+    await room_connections.broadcast(room.code, {"type": "chess_updated"})
+    return RoomResponse.model_validate(updated_room)
+
+
+@router.post("/{code}/chess/resign", response_model=RoomResponse)
+async def resign_from_chess_game(code: str, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
+    room = await get_room(session, code)
+    updated_room = await resign_chess_game(session, room, current_user)
+    await room_connections.broadcast(room.code, {"type": "chess_updated"})
+    return RoomResponse.model_validate(updated_room)
+
+
+@router.post("/{code}/chess/draw", response_model=RoomResponse)
+async def handle_chess_draw(code: str, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
+    room = await get_room(session, code)
+    updated_room = await offer_or_accept_chess_draw(session, room, current_user)
     await room_connections.broadcast(room.code, {"type": "chess_updated"})
     return RoomResponse.model_validate(updated_room)
 
