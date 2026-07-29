@@ -1001,8 +1001,14 @@ const openSpotifyPlaylist = async (
                 )}
                 <button
                   onClick={() => {
+                    if (activeRoomCode) {
+                      window.localStorage.removeItem(
+                        roomPlaylistStorageKey(activeRoomCode),
+                      );
+                    }
                     setSelectedPlaylist(null);
                     setPlaylistTracks([]);
+                    setPlaylistError("");
                     setSongPickerOpen(true);
                   }}
                 >
@@ -1138,8 +1144,14 @@ const openSpotifyPlaylist = async (
                   <button
                     className="ghost-button"
                     onClick={() => {
+                      if (activeRoomCode) {
+                        window.localStorage.removeItem(
+                          roomPlaylistStorageKey(activeRoomCode),
+                        );
+                      }
                       setSelectedPlaylist(null);
                       setPlaylistTracks([]);
+                      setPlaylistError("");
                     }}
                   >
                     ← Çalma listeleri
