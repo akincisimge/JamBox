@@ -63,6 +63,7 @@ export type ChessGame = {
   fen: string;
   turn: "white" | "black";
   move_history: string[];
+  legal_moves: string[];
   winner_user_id: string | null;
   result: string | null;
   created_at: string;
