@@ -11,15 +11,19 @@ import {
 import { Icon } from "../components/ui/Icon";
 import { Logo } from "../components/ui/Logo";
 import { RoomModal } from "../components/room/RoomModal";
+import { ChessActivity } from "../components/room/ChessActivity";
 import { SpotifySignInButton } from "../components/spotify/SpotifySignInButton";
 import {
   closeJamBoxRoom,
   connectToJamBoxRoom,
+  createJamBoxChessGame,
   createJamBoxRoom,
   getJamBoxRoom,
   JamBoxApiError,
+  joinJamBoxChessGame,
   joinJamBoxRoom,
   leaveJamBoxRoom,
+  makeJamBoxChessMove,
   registerJamBoxUser,
   sendJamBoxMessage,
   toggleJamBoxMessageReaction,
@@ -98,6 +102,7 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [toast, setToast] = useState("");
   const musicPanelWidth = 460;
   const [musicPanelCollapsed, setMusicPanelCollapsed] = useState(false);
+  const [chessBusy, setChessBusy] = useState(false);
   const [themeColors, setThemeColors] = useState({ primary: "#ff5c8a", secondary: "#7c3aed", deep: "#090b1d" });
 
   useEffect(() => {
@@ -240,6 +245,13 @@ const [searchLoading, setSearchLoading] = useState(false);
           setActiveRoom(await getJamBoxRoom(activeRoomCode));
         } catch (error) {
           console.error("Oynatma durumu güncellenemedi:", error);
+        }
+      },
+      onChessUpdated: async () => {
+        try {
+          setActiveRoom(await getJamBoxRoom(activeRoomCode));
+        } catch (error) {
+          console.error("Satranç masası güncellenemedi:", error);
         }
       },
       onMessageCreated: (newMessage) => {
@@ -504,6 +516,44 @@ const openSpotifyPlaylist = async (
           ? error.message
           : "Odadan çıkılamadı.",
       );
+    }
+  }
+
+  async function openChessTable() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setChessBusy(true);
+    try {
+      setActiveRoom(await createJamBoxChessGame(jamBoxUserId, activeRoom.code));
+      setToast("Satranç daveti sohbete gönderildi.");
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Satranç masası açılamadı.");
+    } finally {
+      setChessBusy(false);
+    }
+  }
+
+  async function acceptChessInvite() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setChessBusy(true);
+    try {
+      setActiveRoom(await joinJamBoxChessGame(jamBoxUserId, activeRoom.code));
+      setToast("Satranç masasına katıldın.");
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Satranç masasına katılamadın.");
+    } finally {
+      setChessBusy(false);
+    }
+  }
+
+  async function playChessMove(from: string, to: string) {
+    if (!activeRoom || !jamBoxUserId) return;
+    setChessBusy(true);
+    try {
+      setActiveRoom(await makeJamBoxChessMove(jamBoxUserId, activeRoom.code, from, to, "q"));
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Hamle yapılamadı.");
+    } finally {
+      setChessBusy(false);
     }
   }
 
@@ -992,6 +1042,22 @@ const openSpotifyPlaylist = async (
                       </time>
                     </div>
                     <p>{item.text}</p>
+                    {item.message_type === "chess_invite" && (
+                      <div className="chess-invite-card">
+                        <span>♟</span>
+                        <div>
+                          <strong>Satranç daveti</strong>
+                          <small>Müzik devam ederken masaya katıl.</small>
+                        </div>
+                        {activeRoom?.chess_game?.status === "waiting" &&
+                          activeRoom.chess_game.creator_id !== jamBoxUserId && (
+                            <button type="button" onClick={acceptChessInvite} disabled={chessBusy}>
+                              Katıl
+                            </button>
+                          )}
+                        {activeRoom?.chess_game?.status === "active" && <b>Oyun başladı</b>}
+                      </div>
+                    )}
                     <div className="message-reactions">
                       {Object.entries(item.reactions ?? {}).map(
                         ([emoji, userIds]) => (
@@ -1070,39 +1136,14 @@ const openSpotifyPlaylist = async (
           </aside>
 
           <section className="activities-panel panel" aria-labelledby="activities-title">
-            <div className="section-heading">
-              <div>
-                <span className="music-panel-eyebrow">PLAY TOGETHER</span>
-                <h2 id="activities-title">Activities</h2>
-              </div>
-              <span>More coming soon</span>
-            </div>
-            <div className="activity-grid">
-              <button className="activity-card" disabled>
-                <span className="activity-icon">× ○</span>
-                <strong>Tic-Tac-Toe</strong>
-                <small>Classic 3×3 game</small>
-                <b>Coming soon</b>
-              </button>
-              <button className="activity-card" disabled>
-                <span className="activity-icon">● ●</span>
-                <strong>Connect Four</strong>
-                <small>Four in a row</small>
-                <b>Coming soon</b>
-              </button>
-              <button className="activity-card" disabled>
-                <span className="activity-icon">▥</span>
-                <strong>Polls</strong>
-                <small>Ask, vote, decide</small>
-                <b>Coming soon</b>
-              </button>
-              <button className="activity-card" disabled>
-                <span className="activity-icon">＋</span>
-                <strong>More activities</strong>
-                <small>Built for the whole room</small>
-                <b>Coming soon</b>
-              </button>
-            </div>
+            <ChessActivity
+              game={activeRoom?.chess_game ?? null}
+              currentUserId={jamBoxUserId}
+              busy={chessBusy}
+              onCreate={openChessTable}
+              onJoin={acceptChessInvite}
+              onMove={playChessMove}
+            />
           </section>
 
           <section className="queue-panel panel music-library-panel">
