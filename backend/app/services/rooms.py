@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.room import Room, RoomMember, RoomPlayback
+from app.models.room import Room, RoomMember, RoomMessage, RoomPlayback
 from app.models.user import User
 from app.schemas.room import PlaybackUpdate
 from app.services.errors import ConflictError, ForbiddenError, NotFoundError
@@ -44,6 +44,7 @@ async def get_room(session: AsyncSession, code: str) -> Room:
         .options(
             selectinload(Room.members).selectinload(RoomMember.user),
             selectinload(Room.playback),
+            selectinload(Room.messages).selectinload(RoomMessage.user),
         )
         .execution_options(populate_existing=True)
     )
@@ -167,6 +168,27 @@ async def update_playback(
 
     await session.commit()
     return await get_room(session, room.code)
+
+
+async def create_message(
+    session: AsyncSession,
+    room: Room,
+    actor: User,
+    text: str,
+) -> RoomMessage:
+    membership = await session.get(
+        RoomMember,
+        {"room_id": room.id, "user_id": actor.id},
+    )
+    if membership is None:
+        raise NotFoundError("Kullanıcı bu odada değil.")
+
+    message = RoomMessage(room_id=room.id, user_id=actor.id, text=text.strip())
+    message.user = actor
+    session.add(message)
+    await session.commit()
+    await session.refresh(message)
+    return message
 
 
 async def close_room(session: AsyncSession, room: Room, actor: User) -> None:
