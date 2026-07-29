@@ -51,14 +51,19 @@ async def room_updates(
         await websocket.close(code=4403, reason="Kullanıcı bu odada değil.")
         return
 
-    await room_connections.connect(room.code, websocket)
+    room_code = room.code
+    await session.close()
+
+    await room_connections.connect(room_code, websocket)
     await websocket.send_json({"type": "connected"})
 
     try:
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        room_connections.disconnect(room.code, websocket)
+        pass
+    finally:
+        room_connections.disconnect(room_code, websocket)
 
 
 @router.post("", response_model=RoomResponse, status_code=status.HTTP_201_CREATED)
