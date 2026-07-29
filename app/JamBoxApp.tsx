@@ -94,6 +94,7 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [queue] = useState(initialQueue);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState("");
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [toast, setToast] = useState("");
   const musicPanelWidth = 460;
   const [musicPanelCollapsed, setMusicPanelCollapsed] = useState(false);
@@ -945,17 +946,69 @@ const openSpotifyPlaylist = async (
               <div ref={messagesEndRef} aria-hidden="true" />
             </div>
 
-            <div className="chat-quick-actions" aria-label="Hızlı emojiler">
-              {["🎵", "🔥", "💜", "✨", "😂"].map((emoji) => (
+            <div className="chat-emoji-tools">
+              <div className="chat-quick-actions" aria-label="Hızlı emojiler">
+                {["🎵", "🔥", "💜", "✨", "😂"].map((emoji) => (
+                  <button
+                    type="button"
+                    key={emoji}
+                    onClick={() => setMessage((current) => `${current}${emoji}`)}
+                    aria-label={`${emoji} emojisini mesaja ekle`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
                 <button
                   type="button"
-                  key={emoji}
-                  onClick={() => setMessage((current) => `${current}${emoji}`)}
-                  aria-label={`${emoji} emojisini mesaja ekle`}
+                  className="emoji-picker-trigger"
+                  onClick={() => setEmojiPickerOpen((open) => !open)}
+                  aria-expanded={emojiPickerOpen}
+                  aria-label="Emoji listesini aç"
                 >
-                  {emoji}
+                  ☺
                 </button>
-              ))}
+              </div>
+
+              {emojiPickerOpen && (
+                <div className="emoji-picker" aria-label="Emoji listesi">
+                  <span>Ruh hali</span>
+                  <div>
+                    {[
+                      "😀", "😄", "😂", "🥹", "😍", "🥰", "😎", "🤩",
+                      "🥳", "😭", "😤", "🤯", "🫠", "🙃", "🤭", "🫶",
+                    ].map((emoji) => (
+                      <button
+                        type="button"
+                        key={emoji}
+                        onClick={() => {
+                          setMessage((current) => `${current}${emoji}`);
+                          setEmojiPickerOpen(false);
+                        }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                  <span>Müzik & enerji</span>
+                  <div>
+                    {[
+                      "🎵", "🎶", "🎧", "🎤", "🎸", "🪩", "🔥", "✨",
+                      "💫", "⚡", "💜", "🩷", "❤️", "🖤", "👏", "🙌",
+                    ].map((emoji) => (
+                      <button
+                        type="button"
+                        key={emoji}
+                        onClick={() => {
+                          setMessage((current) => `${current}${emoji}`);
+                          setEmojiPickerOpen(false);
+                        }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <form
