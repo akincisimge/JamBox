@@ -8,9 +8,11 @@ export type Track = {
 };
 
 export type ChatMessage = {
-  name: string;
+  id: string;
+  user_id: string;
   text: string;
-  color: string;
+  created_at: string;
+  user: JamBoxUser;
 };
 
 export type SpotifyProfile = {
@@ -85,4 +87,5 @@ export type JamBoxRoom = {
   created_at: string;
   members: JamBoxRoomMember[];
   playback: JamBoxPlayback | null;
+  messages: ChatMessage[];
 };
