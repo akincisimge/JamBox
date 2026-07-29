@@ -34,6 +34,7 @@ def test_room_routes_are_documented() -> None:
     assert "/api/rooms/{code}/leave" in schema["paths"]
     assert "/api/rooms/{code}/members/{user_id}/music-permission" in schema["paths"]
     assert "/api/rooms/{code}/playback" in schema["paths"]
+    assert "/api/rooms/{code}/messages" in schema["paths"]
 
 
 @pytest.mark.asyncio
