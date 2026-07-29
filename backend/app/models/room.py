@@ -44,6 +44,11 @@ class Room(TimestampMixin, Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    messages: Mapped[list[RoomMessage]] = relationship(
+        back_populates="room",
+        cascade="all, delete-orphan",
+        order_by="RoomMessage.created_at",
+    )
 
 
 class RoomMember(TimestampMixin, Base):
@@ -84,3 +89,25 @@ class RoomPlayback(Base):
     changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     room: Mapped[Room] = relationship(back_populates="playback")
+
+
+class RoomMessage(TimestampMixin, Base):
+    __tablename__ = "room_messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    room_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("rooms.id", ondelete="CASCADE"),
+        index=True,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+    text: Mapped[str] = mapped_column(String(500))
+
+    room: Mapped[Room] = relationship(back_populates="messages")
+    user: Mapped[User] = relationship()
