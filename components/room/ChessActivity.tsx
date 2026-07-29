@@ -30,10 +30,11 @@ type Props = {
   busy: boolean;
   onCreate: () => void;
   onJoin: () => void;
+  onAddTestOpponent: () => void;
   onMove: (from: string, to: string) => void;
 };
 
-export function ChessActivity({ game, currentUserId, busy, onCreate, onJoin, onMove }: Props) {
+export function ChessActivity({ game, currentUserId, busy, onCreate, onJoin, onAddTestOpponent, onMove }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const board = useMemo(() => boardFromFen(game?.fen), [game?.fen]);
   const isPlayer = game?.white_user_id === currentUserId || game?.black_user_id === currentUserId;
@@ -63,7 +64,14 @@ export function ChessActivity({ game, currentUserId, busy, onCreate, onJoin, onM
         <p>Müzik ve sohbet kesilmeden, oda içinde eşzamanlı oynayın.</p>
         {!game && <button className="chess-primary" onClick={onCreate} disabled={busy}>♟ Satranç masası aç</button>}
         {game?.status === "waiting" && game.creator_id !== currentUserId && <button className="chess-primary" onClick={onJoin} disabled={busy}>Masaya katıl</button>}
-        {game?.status === "waiting" && game.creator_id === currentUserId && <div className="chess-waiting"><i /> Sohbetteki davetin kabul edilmesi bekleniyor</div>}
+        {game?.status === "waiting" && game.creator_id === currentUserId && (
+          <>
+            <div className="chess-waiting"><i /> Sohbetteki davetin kabul edilmesi bekleniyor</div>
+            <button className="chess-test-button" onClick={onAddTestOpponent} disabled={busy}>
+              ⚙ Test rakibi ekle
+            </button>
+          </>
+        )}
         {game?.status === "active" && <div className="chess-turn">{game.turn === "white" ? "Beyaz" : "Siyah"} hamlede {canMove && "· Sıra sende"}</div>}
         {game?.status === "finished" && <div className="chess-turn">Sonuç: {game.result ?? "Tamamlandı"}</div>}
         {game && (
