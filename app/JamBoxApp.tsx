@@ -93,7 +93,7 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState("");
   const [toast, setToast] = useState("");
-  const [musicPanelWidth, setMusicPanelWidth] = useState(430);
+  const musicPanelWidth = 460;
   const [musicPanelCollapsed, setMusicPanelCollapsed] = useState(false);
   const [themeColors, setThemeColors] = useState({ primary: "#ff5c8a", secondary: "#7c3aed", deep: "#090b1d" });
 
@@ -985,20 +985,6 @@ const openSpotifyPlaylist = async (
               </div>
 
               <div className="music-panel-actions">
-                <button
-                  className="panel-size-control"
-                  onClick={() => setMusicPanelWidth((width) => Math.max(340, width - 60))}
-                  aria-label="Müzik panelini küçült"
-                >
-                  −
-                </button>
-                <button
-                  className="panel-size-control"
-                  onClick={() => setMusicPanelWidth((width) => Math.min(620, width + 60))}
-                  aria-label="Müzik panelini büyüt"
-                >
-                  +
-                </button>
                 {selectedPlaylist && (
                   <button
                     onClick={playRandomTrack}
