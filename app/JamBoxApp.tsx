@@ -815,6 +815,7 @@ const openSpotifyPlaylist = async (
         </button>
 
         <section className="room-layout">
+          <div className="room-left-column">
           <aside className="listeners-panel panel">
             <div className="section-heading">
               <h2>Listeners</h2>
@@ -936,6 +937,7 @@ const openSpotifyPlaylist = async (
               )}
             </p>
           </section>
+          </div>
 
           <aside className="chat-panel panel">
             <div className="section-heading">
