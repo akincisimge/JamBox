@@ -2247,3 +2247,74 @@ a { color: inherit; text-decoration: none; }
 @media(prefers-reduced-motion:reduce){
   .room-page .music-state-spinner{animation:none}
 }
+
+
+/* PLAY TOGETHER — REALTIME CHESS */
+.room-page .activities-panel{overflow:visible}
+.room-page .chess-activity{
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:minmax(260px,.72fr) minmax(300px,560px);
+  align-items:center;
+  justify-content:space-between;
+  gap:clamp(22px,4vw,64px);
+}
+.room-page .chess-copy{display:flex;flex-direction:column;align-items:flex-start;min-width:0}
+.room-page .chess-copy h2{margin:8px 0 7px;font-size:clamp(24px,3vw,38px);letter-spacing:-.035em}
+.room-page .chess-copy>p{max-width:450px;margin:0 0 20px;color:var(--muted);line-height:1.6}
+.room-page .chess-primary{
+  min-height:46px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  padding:0 18px;
+  color:#fff;
+  background:linear-gradient(135deg,var(--ambient-a),var(--ambient-b));
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:14px;
+  box-shadow:0 12px 30px color-mix(in srgb,var(--ambient-a) 22%,transparent),inset 0 1px 0 rgba(255,255,255,.24);
+  cursor:pointer;
+  font-weight:800;
+  transition:transform 160ms ease,box-shadow 180ms ease;
+}
+.room-page .chess-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 16px 38px color-mix(in srgb,var(--ambient-a) 32%,transparent)}
+.room-page .chess-primary:disabled{opacity:.5;cursor:wait}
+.room-page .chess-waiting,.room-page .chess-turn{
+  display:inline-flex;align-items:center;gap:9px;margin:4px 0 16px;padding:9px 12px;
+  color:var(--text);background:color-mix(in srgb,var(--ambient-a) 9%,rgba(255,255,255,.03));
+  border:1px solid color-mix(in srgb,var(--ambient-a) 20%,rgba(255,255,255,.08));border-radius:999px;font-size:11px
+}
+.room-page .chess-waiting i{width:7px;height:7px;border-radius:50%;background:var(--ambient-a);box-shadow:0 0 12px var(--ambient-a);animation:chess-wait 1.4s ease-in-out infinite}
+@keyframes chess-wait{50%{opacity:.35;transform:scale(.72)}}
+.room-page .chess-players{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:8px}
+.room-page .chess-players span{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:12px;font-size:11px}
+.room-page .chess-players span b{font-size:20px}.room-page .chess-players em{color:var(--muted);font-size:9px;font-style:normal;font-weight:900}
+.room-page .chess-board{
+  width:min(100%,520px);aspect-ratio:1;display:grid;grid-template-columns:repeat(8,1fr);
+  overflow:hidden;border:1px solid color-mix(in srgb,var(--ambient-a) 38%,rgba(255,255,255,.15));
+  border-radius:20px;box-shadow:0 28px 70px rgba(0,0,0,.32),0 0 40px color-mix(in srgb,var(--ambient-a) 13%,transparent);
+}
+.room-page .chess-board button{
+  min-width:0;display:grid;place-items:center;padding:0;border:0;border-radius:0;
+  color:#fff;font-family:Georgia,serif;font-size:clamp(24px,4vw,48px);line-height:1;
+  text-shadow:0 2px 5px rgba(0,0,0,.5);cursor:pointer;transition:filter 130ms ease,box-shadow 130ms ease
+}
+.room-page .chess-board button.light{background:color-mix(in srgb,var(--ambient-a) 18%,#d8d8e5)}
+.room-page .chess-board button.dark{background:color-mix(in srgb,var(--ambient-b) 40%,#25263b)}
+.room-page .chess-board button:hover:not(:disabled){filter:brightness(1.18)}
+.room-page .chess-board button.selected{box-shadow:inset 0 0 0 4px #fff,0 0 18px var(--ambient-a);filter:brightness(1.2)}
+.room-page .chess-board button:disabled{cursor:default}
+.room-page .chess-invite-card{
+  display:flex;align-items:center;gap:10px;margin-top:10px;padding:11px;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--ambient-a) 16%,rgba(255,255,255,.04)),rgba(255,255,255,.02));
+  border:1px solid color-mix(in srgb,var(--ambient-a) 30%,rgba(255,255,255,.09));border-radius:13px
+}
+.room-page .chess-invite-card>span{width:34px;height:34px;display:grid;place-items:center;flex:0 0 auto;background:rgba(255,255,255,.06);border-radius:10px;font-size:22px}
+.room-page .chess-invite-card>div{display:grid;gap:2px;min-width:0}.room-page .chess-invite-card small{color:var(--muted);font-size:9px}
+.room-page .chess-invite-card button{margin-left:auto;padding:7px 11px;color:#fff;background:var(--ambient-a);border:0;border-radius:9px;cursor:pointer;font-weight:800}
+.room-page .chess-invite-card>b{margin-left:auto;color:color-mix(in srgb,var(--ambient-a) 70%,#fff);font-size:9px;white-space:nowrap}
+@media(max-width:900px){.room-page .chess-activity{grid-template-columns:1fr}.room-page .chess-board{width:min(100%,520px);justify-self:center}}
+@media(max-width:520px){.room-page .chess-board{border-radius:13px}.room-page .chess-board button{font-size:clamp(24px,10vw,40px)}.room-page .chess-invite-card{align-items:flex-start;flex-wrap:wrap}.room-page .chess-invite-card button{width:100%;margin:2px 0 0}}
+@media(prefers-reduced-motion:reduce){.room-page .chess-waiting i{animation:none}}
