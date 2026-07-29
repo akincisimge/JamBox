@@ -559,11 +559,11 @@ const openSpotifyPlaylist = async (
     }
   }
 
-  async function playChessMove(from: string, to: string) {
+  async function playChessMove(from: string, to: string, promotion?: string) {
     if (!activeRoom || !jamBoxUserId) return;
     setChessBusy(true);
     try {
-      setActiveRoom(await makeJamBoxChessMove(jamBoxUserId, activeRoom.code, from, to));
+      setActiveRoom(await makeJamBoxChessMove(jamBoxUserId, activeRoom.code, from, to, promotion));
     } catch (error) {
       setToast(error instanceof JamBoxApiError ? error.message : "Hamle yapılamadı.");
     } finally {
