@@ -1828,3 +1828,47 @@ a { color: inherit; text-decoration: none; }
 @media(prefers-reduced-motion:reduce){
   .room-page .emoji-scroll-hint{animation:none}
 }
+
+
+/* RICH CHAT — CONVERSATION LAYOUT */
+.room-page .chat-panel .message{
+  width:min(82%,620px);
+  max-width:82%;
+  align-items:flex-end;
+  padding:0;
+  background:transparent;
+  border:0;
+  border-radius:0;
+}
+.room-page .chat-panel .message>div{
+  flex:0 1 auto;
+  min-width:110px;
+  max-width:calc(100% - 44px);
+  padding:10px 13px;
+  background:linear-gradient(135deg,
+    color-mix(in srgb,var(--ambient-a) 9%,rgba(255,255,255,.045)),
+    rgba(255,255,255,.022));
+  border:1px solid color-mix(in srgb,var(--ambient-a) 15%,rgba(255,255,255,.07));
+  border-radius:7px 17px 17px 17px;
+  box-shadow:0 8px 22px rgba(0,0,0,.12);
+  transition:background 900ms ease,border-color 900ms ease;
+}
+.room-page .chat-panel .message.own-message{
+  align-self:flex-end;
+  flex-direction:row-reverse;
+}
+.room-page .chat-panel .message.own-message>div{
+  background:linear-gradient(135deg,
+    color-mix(in srgb,var(--ambient-a) 19%,rgba(255,255,255,.055)),
+    color-mix(in srgb,var(--ambient-b) 10%,rgba(255,255,255,.025)));
+  border-color:color-mix(in srgb,var(--ambient-a) 27%,rgba(255,255,255,.09));
+  border-radius:17px 7px 17px 17px;
+}
+.room-page .chat-panel .message.own-message .message-meta{
+  flex-direction:row-reverse;
+}
+.room-page .message-avatar{
+  flex:0 0 auto;
+  object-fit:cover;
+  background:var(--surface-2);
+}
