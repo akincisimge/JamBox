@@ -39,12 +39,17 @@ class MessageCreate(BaseModel):
     text: str = Field(min_length=1, max_length=500)
 
 
+class MessageReactionToggle(BaseModel):
+    emoji: str = Field(min_length=1, max_length=8)
+
+
 class MessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     user_id: uuid.UUID
     text: str
+    reactions: dict[str, list[str]] = Field(default_factory=dict)
     created_at: datetime
     user: UserResponse
 
