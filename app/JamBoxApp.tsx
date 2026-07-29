@@ -185,13 +185,15 @@ const [searchLoading, setSearchLoading] = useState(false);
     if (!savedPlaylist) return;
 
     let cancelled = false;
-    setSelectedPlaylist(savedPlaylist);
     setPlaylistLoading(true);
     setPlaylistError("");
 
     void getSpotifyPlaylistTracks(savedPlaylist.id)
       .then((tracks) => {
-        if (!cancelled) setPlaylistTracks(tracks);
+        if (!cancelled) {
+          setSelectedPlaylist(savedPlaylist);
+          setPlaylistTracks(tracks);
+        }
       })
       .catch(() => {
         if (!cancelled) {
