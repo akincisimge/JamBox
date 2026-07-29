@@ -42,6 +42,8 @@ import type {
 } from "../types/jambox";
 
 const ACTIVE_ROOM_STORAGE_KEY = "jambox_active_room_code";
+const roomPlaylistStorageKey = (roomCode: string) =>
+  `jambox_room_playlist:${roomCode}`;
 
 export default function JamBoxApp() {
   const [spotifyProfile, setSpotifyProfile] =
@@ -165,6 +167,47 @@ const [searchLoading, setSearchLoading] = useState(false);
   }, [activeRoomCode]);
 
   useEffect(() => {
+    if (
+      view !== "room" ||
+      !activeRoomCode ||
+      spotifyPlaylists.length === 0 ||
+      selectedPlaylist
+    ) {
+      return;
+    }
+
+    const savedPlaylistId = window.localStorage.getItem(
+      roomPlaylistStorageKey(activeRoomCode),
+    );
+    const savedPlaylist = spotifyPlaylists.find(
+      (playlist) => playlist.id === savedPlaylistId,
+    );
+    if (!savedPlaylist) return;
+
+    let cancelled = false;
+    setSelectedPlaylist(savedPlaylist);
+    setPlaylistLoading(true);
+    setPlaylistError("");
+
+    void getSpotifyPlaylistTracks(savedPlaylist.id)
+      .then((tracks) => {
+        if (!cancelled) setPlaylistTracks(tracks);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPlaylistError("Bu çalma listesindeki şarkılar alınamadı.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPlaylistLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRoomCode, selectedPlaylist, spotifyPlaylists, view]);
+
+  useEffect(() => {
     if (view !== "room" || !activeRoomCode || !jamBoxUserId) {
       return;
     }
@@ -261,6 +304,12 @@ const openSpotifyPlaylist = async (
   playlist: SpotifyPlaylist
 ) => {
   setSelectedPlaylist(playlist);
+  if (activeRoomCode) {
+    window.localStorage.setItem(
+      roomPlaylistStorageKey(activeRoomCode),
+      playlist.id,
+    );
+  }
   setPlaylistTracks([]);
   setPlaylistError("");
   setPlaylistLoading(true);
