@@ -33,6 +33,22 @@ class PlaybackResponse(PlaybackUpdate):
     changed_at: datetime
 
 
+class MessageCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    text: str = Field(min_length=1, max_length=500)
+
+
+class MessageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    text: str
+    created_at: datetime
+    user: UserResponse
+
+
 class RoomMemberResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -54,3 +70,4 @@ class RoomResponse(BaseModel):
     created_at: datetime
     members: list[RoomMemberResponse]
     playback: PlaybackResponse | None
+    messages: list[MessageResponse]
