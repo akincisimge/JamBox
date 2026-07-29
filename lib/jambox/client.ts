@@ -104,7 +104,16 @@ export function connectToJamBoxRoom(
   code: string,
   handlers: RoomSocketHandlers,
 ): () => void {
-  const socketUrl = new URL(API_URL, window.location.origin);
+  const isLocalHost = ["localhost", "127.0.0.1"].includes(
+    window.location.hostname,
+  );
+  const socketApiUrl =
+    API_URL.startsWith("http") || !isLocalHost
+      ? new URL(API_URL, window.location.origin)
+      : new URL(
+          `http://${window.location.hostname}:8000${API_URL}`,
+        );
+  const socketUrl = socketApiUrl;
   socketUrl.protocol = socketUrl.protocol === "https:" ? "wss:" : "ws:";
   socketUrl.pathname = `${socketUrl.pathname}/rooms/${encodeURIComponent(
     code,
