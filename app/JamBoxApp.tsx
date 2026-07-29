@@ -37,6 +37,7 @@ import {
   applyRoomPlayback,
   createSpotifyRoomPlayer,
   currentPlaybackPosition,
+  pauseSpotifyPlayback,
   skipSpotifyPlayback,
 } from "../lib/spotify/playback";
 import { initialQueue } from "../mocks/room";
@@ -575,6 +576,10 @@ const openSpotifyPlaylist = async (
     if (!activeRoom?.playback || !jamBoxUserId) return;
     const current = activeRoom.playback;
     try {
+      if (current.is_playing && spotifyDeviceId) {
+        await pauseSpotifyPlayback(spotifyDeviceId);
+      }
+
       setActiveRoom(
         await updateJamBoxPlayback(jamBoxUserId, activeRoom.code, {
           spotify_uri: current.spotify_uri,
