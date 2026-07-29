@@ -105,6 +105,18 @@ export async function getSpotifyPlaylistTracks(
     .filter((track): track is SpotifyTrack => Boolean(track?.id));
 }
 
+export async function searchSpotifyTracks(
+  query: string,
+): Promise<SpotifyTrack[]> {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return [];
+
+  const data = await spotifyFetch<{ tracks?: { items?: SpotifyTrack[] } }>(
+    `/search?type=track&limit=12&q=${encodeURIComponent(trimmedQuery)}`,
+  );
+  return data.tracks?.items ?? [];
+}
+
 export async function startSpotifyLogin(): Promise<void> {
   const clientId = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
   const redirectUri = `${window.location.origin}/callback`;
