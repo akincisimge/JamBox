@@ -179,6 +179,34 @@ async def create_chess_game(session: AsyncSession, room: Room, actor: User) -> t
     return await get_room(session, room.code), message
 
 
+async def add_chess_test_opponent(session: AsyncSession, room: Room, actor: User) -> Room:
+    await _require_member(session, room, actor)
+    game = await session.scalar(select(ChessGame).where(ChessGame.room_id == room.id))
+    if game is None or game.status != "waiting" or game.creator_id != actor.id:
+        raise ConflictError("Test rakibi yalnızca bekleyen kendi masanıza ekleyebilirsiniz.")
+    spotify_id = f"jambox-test-opponent-{room.id}"
+    test_user = await session.scalar(select(User).where(User.spotify_id == spotify_id))
+    if test_user is None:
+        test_user = User(
+            spotify_id=spotify_id,
+            display_name="JamBot",
+            email=None,
+            avatar_url=None,
+        )
+        session.add(test_user)
+        await session.flush()
+    membership = await session.get(
+        RoomMember,
+        {"room_id": room.id, "user_id": test_user.id},
+    )
+    if membership is None:
+        session.add(RoomMember(room_id=room.id, user_id=test_user.id))
+    game.black_user_id = test_user.id
+    game.status = "active"
+    await session.commit()
+    return await get_room(session, room.code)
+
+
 async def join_chess_game(session: AsyncSession, room: Room, actor: User) -> Room:
     await _require_member(session, room, actor)
     game = await session.scalar(select(ChessGame).where(ChessGame.room_id == room.id))
@@ -207,14 +235,31 @@ async def make_chess_move(session: AsyncSession, room: Room, actor: User, payloa
     if move not in board.legal_moves:
         raise ConflictError("Bu hamle geçerli değil.")
     board.push(move)
+    history = [*(game.move_history or []), move.uci()]
+
+    test_opponent = (
+        await session.get(User, game.black_user_id)
+        if game.black_user_id is not None
+        else None
+    )
+    if (
+        not board.is_game_over()
+        and board.turn == chess.BLACK
+        and test_opponent is not None
+        and test_opponent.spotify_id.startswith("jambox-test-opponent-")
+    ):
+        bot_move = secrets.choice(list(board.legal_moves))
+        board.push(bot_move)
+        history.append(bot_move.uci())
+
     game.fen = board.fen()
     game.turn = "white" if board.turn == chess.WHITE else "black"
-    game.move_history = [*(game.move_history or []), move.uci()]
+    game.move_history = history
     if board.is_game_over():
         game.status = "finished"
         game.result = board.result()
         if board.is_checkmate():
-            game.winner_user_id = actor.id
+            game.winner_user_id = actor.id if board.turn == chess.BLACK else game.black_user_id
     await session.commit()
     return await get_room(session, room.code)
 
