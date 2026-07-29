@@ -1329,3 +1329,93 @@ a { color: inherit; text-decoration: none; }
 @media(prefers-reduced-motion:reduce){
   .room-page::before{animation:none}
 }
+
+
+/* SAFE DYNAMIC THEME — PHASE 2: GLASS SURFACES */
+.room-page .panel{
+  background:
+    linear-gradient(145deg,
+      color-mix(in srgb,var(--ambient-a) 8%,rgba(20,24,48,.88)),
+      color-mix(in srgb,var(--ambient-b) 6%,rgba(9,11,29,.84)));
+  border-color:color-mix(in srgb,var(--ambient-a) 22%,rgba(255,255,255,.12));
+  box-shadow:
+    0 22px 60px rgba(0,0,0,.28),
+    0 0 32px color-mix(in srgb,var(--ambient-a) 8%,transparent),
+    inset 0 1px 0 rgba(255,255,255,.055);
+  transition:background 900ms ease,border-color 900ms ease,box-shadow 900ms ease;
+}
+.room-page .large-art{
+  border:1px solid color-mix(in srgb,var(--ambient-a) 32%,rgba(255,255,255,.14));
+  box-shadow:
+    0 24px 54px rgba(0,0,0,.42),
+    0 0 34px color-mix(in srgb,var(--ambient-a) 25%,transparent),
+    0 0 68px color-mix(in srgb,var(--ambient-b) 12%,transparent);
+  transition:border-color 900ms ease,box-shadow 900ms ease;
+}
+.room-page .now-playing-label,
+.room-page .music-panel-eyebrow,
+.room-page .room-identity{
+  color:color-mix(in srgb,var(--ambient-a) 78%,#fff);
+  text-shadow:0 0 16px color-mix(in srgb,var(--ambient-a) 38%,transparent);
+  transition:color 900ms ease,text-shadow 900ms ease;
+}
+.room-page .equalizer i{
+  background:linear-gradient(180deg,var(--ambient-a),var(--ambient-b));
+  transition:background 900ms ease;
+}
+.room-page .progress div i{
+  background:linear-gradient(90deg,var(--ambient-a),var(--ambient-b));
+  box-shadow:0 0 16px color-mix(in srgb,var(--ambient-a) 42%,transparent);
+  transition:background 900ms ease,box-shadow 900ms ease;
+}
+.room-page .message{
+  padding:9px 12px;
+  border:1px solid color-mix(in srgb,var(--ambient-a) 13%,transparent);
+  border-radius:6px 15px 15px 15px;
+  background:linear-gradient(135deg,
+    color-mix(in srgb,var(--ambient-a) 8%,rgba(255,255,255,.035)),
+    rgba(255,255,255,.018));
+  transition:background 900ms ease,border-color 900ms ease;
+}
+.room-page .message:nth-child(even){
+  border-color:color-mix(in srgb,var(--ambient-b) 15%,transparent);
+  background:linear-gradient(135deg,
+    color-mix(in srgb,var(--ambient-b) 9%,rgba(255,255,255,.035)),
+    rgba(255,255,255,.018));
+}
+.room-page .message-form{
+  border-color:color-mix(in srgb,var(--ambient-a) 22%,rgba(255,255,255,.11));
+  transition:border-color 900ms ease,box-shadow 300ms ease;
+}
+.room-page .message-form:focus-within{
+  border-color:color-mix(in srgb,var(--ambient-a) 72%,#fff);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--ambient-a) 14%,transparent);
+}
+.room-page .music-library-panel{
+  background:
+    radial-gradient(circle at 12% 4%,color-mix(in srgb,var(--ambient-a) 13%,transparent),transparent 32%),
+    linear-gradient(155deg,
+      color-mix(in srgb,var(--ambient-dark) 76%,#1a2040),
+      color-mix(in srgb,var(--ambient-b) 10%,#090b1d));
+  border-color:color-mix(in srgb,var(--ambient-a) 30%,rgba(255,255,255,.13));
+  box-shadow:
+    -24px 22px 70px rgba(0,0,0,.42),
+    0 0 42px color-mix(in srgb,var(--ambient-a) 13%,transparent);
+  transition:transform .28s ease,background 900ms ease,border-color 900ms ease,box-shadow 900ms ease;
+}
+.room-page .room-track-row{
+  border-bottom-color:color-mix(in srgb,var(--ambient-a) 10%,rgba(255,255,255,.07));
+  transition:background 180ms ease,border-color 900ms ease;
+}
+.room-page .room-track-row:not(:disabled):hover{
+  background:linear-gradient(90deg,
+    color-mix(in srgb,var(--ambient-a) 13%,transparent),
+    color-mix(in srgb,var(--ambient-b) 5%,transparent));
+}
+.room-page .activity-card{
+  background:linear-gradient(145deg,
+    color-mix(in srgb,var(--ambient-a) 9%,rgba(255,255,255,.05)),
+    color-mix(in srgb,var(--ambient-b) 6%,rgba(255,255,255,.02)));
+  border-color:color-mix(in srgb,var(--ambient-b) 22%,rgba(255,255,255,.1));
+  transition:background 900ms ease,border-color 900ms ease;
+}
