@@ -268,6 +268,12 @@ const [searchLoading, setSearchLoading] = useState(false);
         }
         spotifyPlayerRef.current = player;
         setSpotifyDeviceId(deviceId);
+        player.addListener("not_ready", ({ device_id }) => {
+          if (device_id === deviceId) {
+            setSpotifyDeviceId("");
+            setRoomAudioEnabled(false);
+          }
+        });
       })
       .catch((error) => {
         setToast(
@@ -487,12 +493,35 @@ const openSpotifyPlaylist = async (
   async function playTrackTogether(track: SpotifyTrack) {
     if (!activeRoom || !jamBoxUserId) return;
     try {
-      if (spotifyPlayerRef.current && spotifyDeviceId) {
-        await activateSpotifyRoomPlayer(
-          spotifyPlayerRef.current,
-          spotifyDeviceId,
-        );
+      let player = spotifyPlayerRef.current;
+      let deviceId = spotifyDeviceId;
+
+      if (!player || !deviceId) {
+        const created = await createSpotifyRoomPlayer((message) => setToast(message));
+        player = created.player;
+        deviceId = created.deviceId;
+        spotifyPlayerRef.current = player;
+        setSpotifyDeviceId(deviceId);
       }
+
+      try {
+        await activateSpotifyRoomPlayer(player, deviceId);
+      } catch (error) {
+        const isMissingDevice =
+          error instanceof Error &&
+          (error.message.includes("Device not found") ||
+            error.message.includes("404"));
+        if (!isMissingDevice) throw error;
+
+        player.disconnect();
+        const recreated = await createSpotifyRoomPlayer((message) => setToast(message));
+        player = recreated.player;
+        deviceId = recreated.deviceId;
+        spotifyPlayerRef.current = player;
+        setSpotifyDeviceId(deviceId);
+        await activateSpotifyRoomPlayer(player, deviceId);
+      }
+
       setRoomAudioEnabled(true);
       const room = await updateJamBoxPlayback(jamBoxUserId, activeRoom.code, {
         spotify_uri: track.uri,
