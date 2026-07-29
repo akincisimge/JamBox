@@ -89,6 +89,9 @@ export async function toggleJamBoxMessageReaction(userId: string, code: string, 
 export async function createJamBoxChessGame(userId: string, code: string): Promise<JamBoxRoom> {
   return apiFetch<JamBoxRoom>(`/rooms/${encodeURIComponent(code)}/chess`, { method: "POST", headers: { "X-User-Id": userId } });
 }
+export async function addJamBoxChessTestOpponent(userId: string, code: string): Promise<JamBoxRoom> {
+  return apiFetch<JamBoxRoom>(`/rooms/${encodeURIComponent(code)}/chess/test-opponent`, { method: "POST", headers: { "X-User-Id": userId } });
+}
 export async function joinJamBoxChessGame(userId: string, code: string): Promise<JamBoxRoom> {
   return apiFetch<JamBoxRoom>(`/rooms/${encodeURIComponent(code)}/chess/join`, { method: "POST", headers: { "X-User-Id": userId } });
 }
