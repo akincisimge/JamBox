@@ -88,6 +88,7 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [spotifyDeviceId, setSpotifyDeviceId] = useState("");
   const [roomAudioEnabled, setRoomAudioEnabled] = useState(false);
   const spotifyPlayerRef = useRef<SpotifyPlayer | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [playbackClock, setPlaybackClock] = useState(0);
   const [demoIsPlaying, setDemoIsPlaying] = useState(true);
   const [queue] = useState(initialQueue);
@@ -339,6 +340,13 @@ const [searchLoading, setSearchLoading] = useState(false);
       });
     };
   }, [activeRoom?.playback?.album_image_url]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: messages.length > 1 ? "smooth" : "auto",
+      block: "end",
+    });
+  }, [messages.length]);
 
   const playback = activeRoom?.playback ?? null;
   const canControlMusic =
@@ -633,6 +641,13 @@ const openSpotifyPlaylist = async (
     }
   }
 
+  function formatMessageTime(timestamp: string): string {
+    return new Intl.DateTimeFormat("tr-TR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(timestamp));
+  }
+
   function formatTime(milliseconds: number): string {
     const seconds = Math.floor(milliseconds / 1000);
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
@@ -917,10 +932,29 @@ const openSpotifyPlaylist = async (
                   </span>
 
                   <div>
-                    <strong>{item.user.display_name}</strong>
+                    <div className="message-meta">
+                      <strong>{item.user.display_name}</strong>
+                      <time dateTime={item.created_at}>
+                        {formatMessageTime(item.created_at)}
+                      </time>
+                    </div>
                     <p>{item.text}</p>
                   </div>
                 </div>
+              ))}
+              <div ref={messagesEndRef} aria-hidden="true" />
+            </div>
+
+            <div className="chat-quick-actions" aria-label="Hızlı emojiler">
+              {["🎵", "🔥", "💜", "✨", "😂"].map((emoji) => (
+                <button
+                  type="button"
+                  key={emoji}
+                  onClick={() => setMessage((current) => `${current}${emoji}`)}
+                  aria-label={`${emoji} emojisini mesaja ekle`}
+                >
+                  {emoji}
+                </button>
               ))}
             </div>
 
