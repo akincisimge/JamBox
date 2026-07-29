@@ -1528,3 +1528,105 @@ a { color: inherit; text-decoration: none; }
   background:linear-gradient(var(--ambient-a),var(--ambient-b));
   border-radius:999px;
 }
+
+
+/* SAFE DYNAMIC THEME — PHASE 4: LIVING PLAYER */
+.room-page .player-panel{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+}
+.room-page .player-panel>*{
+  position:relative;
+  z-index:1;
+}
+.room-page .player-panel::before{
+  content:"";
+  position:absolute;
+  z-index:0;
+  width:82%;
+  aspect-ratio:1;
+  left:9%;
+  top:7%;
+  border-radius:50%;
+  pointer-events:none;
+  opacity:.3;
+  background:
+    radial-gradient(circle,
+      color-mix(in srgb,var(--ambient-a) 34%,transparent),
+      color-mix(in srgb,var(--ambient-b) 15%,transparent) 42%,
+      transparent 70%);
+  filter:blur(32px);
+  transform:scale(.86);
+  transition:background 900ms ease,opacity 500ms ease,transform 500ms ease;
+}
+.room-page .player-panel.is-playing::before{
+  opacity:.92;
+  animation:safe-player-breathe 4.8s ease-in-out infinite;
+}
+.room-page .player-panel .large-art{
+  animation:safe-cover-reveal 680ms cubic-bezier(.22,1,.36,1) both;
+  transform-origin:center;
+  transition:filter 400ms ease,box-shadow 900ms ease,border-color 900ms ease;
+}
+.room-page .player-panel:not(.is-playing) .large-art{
+  filter:saturate(.82) brightness(.9);
+}
+.room-page .player-panel.is-playing .large-art{
+  filter:saturate(1.08) brightness(1.03);
+}
+.room-page .player-panel.is-playing .main-play{
+  animation:safe-control-glow 3.2s ease-in-out infinite;
+}
+.room-page .progress div{
+  overflow:hidden;
+  background:color-mix(in srgb,var(--ambient-dark) 48%,#555d78);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.32);
+  transition:background 900ms ease;
+}
+.room-page .progress div i{
+  position:relative;
+  overflow:hidden;
+}
+.room-page .progress div i::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(100deg,transparent 15%,rgba(255,255,255,.56) 48%,transparent 78%);
+  transform:translateX(-130%);
+}
+.room-page .player-panel.is-playing .progress div i::after{
+  animation:safe-progress-shine 2.8s ease-in-out infinite;
+}
+.room-page .track-copy h1,
+.room-page .track-copy p{
+  animation:safe-track-copy-in 520ms ease both;
+}
+@keyframes safe-cover-reveal{
+  from{opacity:.35;transform:scale(.94) translateY(8px);filter:blur(5px) saturate(.8)}
+  to{opacity:1;transform:scale(1) translateY(0);filter:blur(0) saturate(1)}
+}
+@keyframes safe-player-breathe{
+  0%,100%{transform:scale(.88);opacity:.62}
+  50%{transform:scale(1.08);opacity:1}
+}
+@keyframes safe-control-glow{
+  0%,100%{box-shadow:0 10px 26px color-mix(in srgb,var(--ambient-a) 27%,transparent),inset 0 1px 0 rgba(255,255,255,.28)}
+  50%{box-shadow:0 12px 38px color-mix(in srgb,var(--ambient-a) 48%,transparent),0 0 24px color-mix(in srgb,var(--ambient-b) 18%,transparent),inset 0 1px 0 rgba(255,255,255,.34)}
+}
+@keyframes safe-progress-shine{
+  0%,35%{transform:translateX(-130%)}
+  75%,100%{transform:translateX(130%)}
+}
+@keyframes safe-track-copy-in{
+  from{opacity:.4;transform:translateY(5px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@media(prefers-reduced-motion:reduce){
+  .room-page .player-panel::before,
+  .room-page .player-panel .large-art,
+  .room-page .player-panel .main-play,
+  .room-page .progress div i::after,
+  .room-page .track-copy h1,
+  .room-page .track-copy p{animation:none!important}
+}
