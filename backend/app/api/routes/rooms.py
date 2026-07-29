@@ -5,10 +5,18 @@ from fastapi import APIRouter, Response, WebSocket, WebSocketDisconnect, status
 from app.api.dependencies import CurrentUser, DatabaseSession
 from app.models.room import RoomMember
 from app.realtime.rooms import room_connections
-from app.schemas.room import MusicPermissionUpdate, PlaybackUpdate, RoomCreate, RoomResponse
+from app.schemas.room import (
+    MessageCreate,
+    MessageResponse,
+    MusicPermissionUpdate,
+    PlaybackUpdate,
+    RoomCreate,
+    RoomResponse,
+)
 from app.services.errors import NotFoundError
 from app.services.rooms import (
     close_room,
+    create_message,
     create_room,
     get_room,
     get_user,
@@ -124,6 +132,27 @@ async def change_playback(
     updated_room = await update_playback(session, room, current_user, payload)
     await room_connections.broadcast(room.code, {"type": "playback_updated"})
     return RoomResponse.model_validate(updated_room)
+
+
+@router.post(
+    "/{code}/messages",
+    response_model=MessageResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def send_room_message(
+    code: str,
+    payload: MessageCreate,
+    session: DatabaseSession,
+    current_user: CurrentUser,
+) -> MessageResponse:
+    room = await get_room(session, code)
+    message = await create_message(session, room, current_user, payload.text)
+    response = MessageResponse.model_validate(message)
+    await room_connections.broadcast(
+        room.code,
+        {"type": "message_created", "message": response.model_dump(mode="json")},
+    )
+    return response
 
 
 @router.delete("/{code}", status_code=status.HTTP_204_NO_CONTENT)
