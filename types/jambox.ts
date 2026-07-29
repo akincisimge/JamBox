@@ -11,6 +11,7 @@ export type ChatMessage = {
   id: string;
   user_id: string;
   text: string;
+  reactions: Record<string, string[]>;
   created_at: string;
   user: JamBoxUser;
 };
