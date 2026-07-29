@@ -95,6 +95,7 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [toast, setToast] = useState("");
   const [musicPanelWidth, setMusicPanelWidth] = useState(430);
   const [musicPanelCollapsed, setMusicPanelCollapsed] = useState(false);
+  const [themeColors, setThemeColors] = useState({ primary: "#ff5c8a", secondary: "#7c3aed", deep: "#090b1d" });
 
   useEffect(() => {
     const savedProfile = readStoredSpotifyProfile();
@@ -284,6 +285,53 @@ const [searchLoading, setSearchLoading] = useState(false);
       setRoomAudioEnabled(false);
     };
   }, [spotifyProfile, view]);
+
+  useEffect(() => {
+    const artwork = activeRoom?.playback?.album_image_url;
+    if (!artwork) {
+      setThemeColors({ primary: "#ff5c8a", secondary: "#7c3aed", deep: "#090b1d" });
+      return;
+    }
+
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.src = artwork;
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 24;
+      canvas.height = 24;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) return;
+      context.drawImage(image, 0, 0, 24, 24);
+      const pixels = context.getImageData(0, 0, 24, 24).data;
+      const colors: Array<{ r: number; g: number; b: number; score: number }> = [];
+      for (let index = 0; index < pixels.length; index += 16) {
+        const r = pixels[index];
+        const g = pixels[index + 1];
+        const b = pixels[index + 2];
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const saturation = max - min;
+        const brightness = (r + g + b) / 3;
+        if (brightness > 28 && brightness < 235) {
+          colors.push({ r, g, b, score: saturation * 1.6 + brightness * .25 });
+        }
+      }
+      colors.sort((a, b) => b.score - a.score);
+      const primary = colors[0] ?? { r: 255, g: 92, b: 138 };
+      const secondary =
+        colors.find((color) =>
+          Math.abs(color.r - primary.r) +
+          Math.abs(color.g - primary.g) +
+          Math.abs(color.b - primary.b) > 120
+        ) ?? colors[Math.min(4, colors.length - 1)] ?? { r: 124, g: 58, b: 237 };
+      setThemeColors({
+        primary: `rgb(${primary.r} ${primary.g} ${primary.b})`,
+        secondary: `rgb(${secondary.r} ${secondary.g} ${secondary.b})`,
+        deep: `rgb(${Math.round(primary.r * .11)} ${Math.round(primary.g * .11)} ${Math.round(primary.b * .11)})`,
+      });
+    };
+  }, [activeRoom?.playback?.album_image_url]);
 
   const playback = activeRoom?.playback ?? null;
   const canControlMusic =
@@ -647,6 +695,9 @@ const openSpotifyPlaylist = async (
               ? `url("${playback.album_image_url}")`
               : "none",
             "--music-panel-width": `${musicPanelWidth}px`,
+            "--album-primary": themeColors.primary,
+            "--album-secondary": themeColors.secondary,
+            "--album-deep": themeColors.deep,
           } as CSSProperties
         }
       >
@@ -857,25 +908,25 @@ const openSpotifyPlaylist = async (
               <span>More coming soon</span>
             </div>
             <div className="activity-grid">
-              <button>
+              <button className="activity-card" disabled>
                 <span className="activity-icon">× ○</span>
                 <strong>Tic-Tac-Toe</strong>
                 <small>Classic 3×3 game</small>
                 <b>Coming soon</b>
               </button>
-              <button>
+              <button className="activity-card" disabled>
                 <span className="activity-icon">● ●</span>
                 <strong>Connect Four</strong>
                 <small>Four in a row</small>
                 <b>Coming soon</b>
               </button>
-              <button>
+              <button className="activity-card" disabled>
                 <span className="activity-icon">▥</span>
                 <strong>Polls</strong>
                 <small>Ask, vote, decide</small>
                 <b>Coming soon</b>
               </button>
-              <button>
+              <button className="activity-card" disabled>
                 <span className="activity-icon">＋</span>
                 <strong>More activities</strong>
                 <small>Built for the whole room</small>
