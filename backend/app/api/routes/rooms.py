@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, Response, WebSocket, WebSocketDisconnect, status
 
 from app.api.dependencies import CurrentUser, DatabaseSession
+from app.config import get_settings
 from app.models.room import RoomMember
 from app.realtime.rooms import room_connections
 from app.schemas.room import (
@@ -17,6 +18,7 @@ from app.schemas.room import (
 )
 from app.services.errors import NotFoundError
 from app.services.rooms import (
+    add_chess_test_opponent,
     close_room,
     create_chess_game,
     create_message,
@@ -126,6 +128,17 @@ async def open_chess_table(code: str, session: DatabaseSession, current_user: Cu
     updated_room, invite = await create_chess_game(session, room, current_user)
     invite_response = MessageResponse.model_validate(invite)
     await room_connections.broadcast(room.code, {"type": "message_created", "message": invite_response.model_dump(mode="json")})
+    await room_connections.broadcast(room.code, {"type": "chess_updated"})
+    return RoomResponse.model_validate(updated_room)
+
+
+@router.post("/{code}/chess/test-opponent", response_model=RoomResponse)
+async def add_test_chess_opponent(code: str, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
+    if get_settings().app_env != "development":
+        raise NotFoundError("Bu özellik yalnızca yerel geliştirme ortamında kullanılabilir.")
+    room = await get_room(session, code)
+    updated_room = await add_chess_test_opponent(session, room, current_user)
+    await room_connections.broadcast(room.code, {"type": "room_updated"})
     await room_connections.broadcast(room.code, {"type": "chess_updated"})
     return RoomResponse.model_validate(updated_room)
 
