@@ -40,6 +40,8 @@ import type {
   SpotifyTrack,
 } from "../types/jambox";
 
+const ACTIVE_ROOM_STORAGE_KEY = "jambox_active_room_code";
+
 export default function JamBoxApp() {
   const [spotifyProfile, setSpotifyProfile] =
     useState<SpotifyProfile | null>(null);
@@ -94,6 +96,48 @@ const [playlistError, setPlaylistError] =
   useEffect(() => {
     if (!spotifyProfile) return;
 
+    let cancelled = false;
+
+    const restoreActiveRoom = async () => {
+      const savedRoomCode = window.localStorage.getItem(
+        ACTIVE_ROOM_STORAGE_KEY,
+      );
+      if (!savedRoomCode) return;
+
+      try {
+        const user = await registerJamBoxUser(spotifyProfile);
+        const room = await getJamBoxRoom(savedRoomCode);
+        const isMember = room.members.some(
+          (member) => member.user_id === user.id,
+        );
+
+        if (!isMember) {
+          window.localStorage.removeItem(ACTIVE_ROOM_STORAGE_KEY);
+          return;
+        }
+
+        if (cancelled) return;
+        setJamBoxUserId(user.id);
+        setActiveRoom(room);
+        setMessages(room.messages);
+        setRoomName(room.name);
+        setRoomCode(room.code);
+        setView("room");
+      } catch {
+        window.localStorage.removeItem(ACTIVE_ROOM_STORAGE_KEY);
+      }
+    };
+
+    void restoreActiveRoom();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [spotifyProfile]);
+
+  useEffect(() => {
+    if (!spotifyProfile) return;
+
     const loadPlaylists = async () => {
       try {
         setSpotifyPlaylists(await getSpotifyPlaylists());
@@ -138,7 +182,9 @@ const [playlistError, setPlaylistError] =
         );
       },
       onRoomClosed: () => {
+        window.localStorage.removeItem(ACTIVE_ROOM_STORAGE_KEY);
         setActiveRoom(null);
+        setMessages([]);
         setView("home");
         setToast("Oda sahibi odayı kapattı.");
       },
@@ -240,9 +286,13 @@ const openSpotifyPlaylist = async (
 
   const logoutFromSpotify = () => {
     clearSpotifySession();
+    window.localStorage.removeItem(ACTIVE_ROOM_STORAGE_KEY);
 
     setSpotifyProfile(null);
     setSpotifyPlaylists([]);
+    setActiveRoom(null);
+    setMessages([]);
+    setView("home");
   };
 
   const sortedQueue = useMemo(
@@ -280,6 +330,7 @@ const openSpotifyPlaylist = async (
       setMessages(room.messages);
       setRoomName(room.name);
       setRoomCode(room.code);
+      window.localStorage.setItem(ACTIVE_ROOM_STORAGE_KEY, room.code);
       setModal(null);
       setView("room");
     } catch (error) {
@@ -295,6 +346,7 @@ const openSpotifyPlaylist = async (
 
   async function exitRoom() {
     if (!activeRoom || !jamBoxUserId) {
+      window.localStorage.removeItem(ACTIVE_ROOM_STORAGE_KEY);
       setView("home");
       return;
     }
@@ -306,7 +358,9 @@ const openSpotifyPlaylist = async (
         await leaveJamBoxRoom(jamBoxUserId, activeRoom.code);
       }
 
+      window.localStorage.removeItem(ACTIVE_ROOM_STORAGE_KEY);
       setActiveRoom(null);
+      setMessages([]);
       setView("home");
     } catch (error) {
       setToast(
