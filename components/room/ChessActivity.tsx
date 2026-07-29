@@ -43,9 +43,13 @@ export function ChessActivity({
   const [selected, setSelected] = useState<string | null>(null);
   const canUseJamBot = process.env.NODE_ENV === "development";
   const board = useMemo(() => boardFromFen(game?.fen), [game?.fen]);
-  const legalMoves = game?.legal_moves ?? [];
+  const legalMoves = useMemo(() => game?.legal_moves ?? [], [game?.legal_moves]);
   const isPlayer = game?.white_user_id === currentUserId || game?.black_user_id === currentUserId;
   const myColor = game?.white_user_id === currentUserId ? "white" : game?.black_user_id === currentUserId ? "black" : null;
+  const boardSquares = useMemo(() => {
+    const squares = board.map((piece, index) => ({ piece, index }));
+    return myColor === "black" ? squares.reverse() : squares;
+  }, [board, myColor]);
   const canMove = game?.status === "active" && isPlayer && game.turn === myColor;
   const movableSquares = useMemo(() => new Set(legalMoves.map((move) => move.slice(0, 2))), [legalMoves]);
   const targetSquares = useMemo(
@@ -136,7 +140,7 @@ export function ChessActivity({
       </div>
       {game && (
         <div className="chess-board" aria-label="Satranç tahtası">
-          {board.map((piece, index) => {
+          {boardSquares.map(({ piece, index }) => {
             const square = squareName(index);
             const isTarget = targetSquares.has(square);
             return (

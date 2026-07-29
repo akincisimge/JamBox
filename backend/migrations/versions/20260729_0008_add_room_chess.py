@@ -40,11 +40,20 @@ def upgrade() -> None:
         sa.Column("status", sa.String(length=16), nullable=False, server_default="waiting"),
         sa.Column("fen", sa.String(length=128), nullable=False),
         sa.Column("turn", sa.String(length=8), nullable=False, server_default="white"),
-        sa.Column("move_history", postgresql.JSON(astext_type=sa.Text()), nullable=False, server_default=sa.text("'[]'::json")),
+        sa.Column(
+            "move_history",
+            postgresql.JSON(astext_type=sa.Text()),
+            nullable=False,
+            server_default=sa.text("'[]'::json"),
+        ),
         sa.Column("winner_user_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("result", sa.String(length=32), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.ForeignKeyConstraint(["room_id"], ["rooms.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["creator_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["white_user_id"], ["users.id"], ondelete="CASCADE"),

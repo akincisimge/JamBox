@@ -45,8 +45,9 @@ export function connectToJamBoxRoom(userId: string, code: string, handlers: Room
   socketUrl.protocol = socketUrl.protocol === "https:" ? "wss:" : "ws:";
   socketUrl.pathname = `${socketUrl.pathname}/rooms/${encodeURIComponent(code)}/ws`;
   socketUrl.search = new URLSearchParams({ user_id: userId }).toString();
-  let socket: WebSocket | null = new WebSocket(socketUrl);
+  let socket: WebSocket | null = null;
   let reconnectTimer: number | undefined;
+  let reconnectDelay = 1000;
   let stopped = false;
   const handleMessage = (event: MessageEvent<string>) => {
     let message: { type?: string; message?: ChatMessage };
@@ -58,17 +59,31 @@ export function connectToJamBoxRoom(userId: string, code: string, handlers: Room
     if (message.type === "message_updated" && message.message) handlers.onMessageUpdated(message.message);
     if (message.type === "room_closed") handlers.onRoomClosed();
   };
-  const handleClose = () => { if (!stopped) reconnectTimer = window.setTimeout(connect, 1500); };
+  const handleOpen = () => {
+    reconnectDelay = 1000;
+  };
+  const handleClose = () => {
+    socket = null;
+    if (stopped || reconnectTimer !== undefined) return;
+    reconnectTimer = window.setTimeout(() => {
+      reconnectTimer = undefined;
+      connect();
+    }, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, 15000);
+  };
   const connect = () => {
+    if (stopped || socket) return;
     socket = new WebSocket(socketUrl);
+    socket.addEventListener("open", handleOpen);
     socket.addEventListener("message", handleMessage);
     socket.addEventListener("close", handleClose);
   };
-  socket.addEventListener("message", handleMessage);
-  socket.addEventListener("close", handleClose);
+  connect();
   return () => {
     stopped = true;
     window.clearTimeout(reconnectTimer);
+    reconnectTimer = undefined;
+    socket?.removeEventListener("open", handleOpen);
     socket?.removeEventListener("message", handleMessage);
     socket?.removeEventListener("close", handleClose);
     socket?.close();
