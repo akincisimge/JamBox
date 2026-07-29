@@ -14,6 +14,7 @@ import { RoomModal } from "../components/room/RoomModal";
 import { ChessActivity } from "../components/room/ChessActivity";
 import { SpotifySignInButton } from "../components/spotify/SpotifySignInButton";
 import {
+  addJamBoxChessTestOpponent,
   closeJamBoxRoom,
   connectToJamBoxRoom,
   createJamBoxChessGame,
@@ -527,6 +528,19 @@ const openSpotifyPlaylist = async (
       setToast("Satranç daveti sohbete gönderildi.");
     } catch (error) {
       setToast(error instanceof JamBoxApiError ? error.message : "Satranç masası açılamadı.");
+    } finally {
+      setChessBusy(false);
+    }
+  }
+
+  async function addChessTestOpponent() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setChessBusy(true);
+    try {
+      setActiveRoom(await addJamBoxChessTestOpponent(jamBoxUserId, activeRoom.code));
+      setToast("JamBot masaya katıldı. İlk hamle sende.");
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Test rakibi eklenemedi.");
     } finally {
       setChessBusy(false);
     }
@@ -1142,6 +1156,7 @@ const openSpotifyPlaylist = async (
               busy={chessBusy}
               onCreate={openChessTable}
               onJoin={acceptChessInvite}
+              onAddTestOpponent={addChessTestOpponent}
               onMove={playChessMove}
             />
           </section>
