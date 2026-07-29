@@ -95,6 +95,15 @@ export async function addJamBoxChessTestOpponent(userId: string, code: string): 
 export async function joinJamBoxChessGame(userId: string, code: string): Promise<JamBoxRoom> {
   return apiFetch<JamBoxRoom>(`/rooms/${encodeURIComponent(code)}/chess/join`, { method: "POST", headers: { "X-User-Id": userId } });
 }
+export async function restartJamBoxChessGame(userId: string, code: string): Promise<JamBoxRoom> {
+  return apiFetch<JamBoxRoom>(`/rooms/${encodeURIComponent(code)}/chess/restart`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function resignJamBoxChessGame(userId: string, code: string): Promise<JamBoxRoom> {
+  return apiFetch<JamBoxRoom>(`/rooms/${encodeURIComponent(code)}/chess/resign`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function offerJamBoxChessDraw(userId: string, code: string): Promise<JamBoxRoom> {
+  return apiFetch<JamBoxRoom>(`/rooms/${encodeURIComponent(code)}/chess/draw`, { method: "POST", headers: { "X-User-Id": userId } });
+}
 export async function makeJamBoxChessMove(userId: string, code: string, fromSquare: string, toSquare: string, promotion?: string): Promise<JamBoxRoom> {
   return apiFetch<JamBoxRoom>(`/rooms/${encodeURIComponent(code)}/chess/moves`, { method: "POST", headers: { "X-User-Id": userId }, body: JSON.stringify({ from_square: fromSquare, to_square: toSquare, promotion: promotion ?? null }) });
 }
