@@ -220,6 +220,59 @@ async def join_chess_game(session: AsyncSession, room: Room, actor: User) -> Roo
     return await get_room(session, room.code)
 
 
+async def restart_chess_game(session: AsyncSession, room: Room, actor: User) -> Room:
+    await _require_member(session, room, actor)
+    game = await session.scalar(select(ChessGame).where(ChessGame.room_id == room.id))
+    if game is None or actor.id not in {game.white_user_id, game.black_user_id}:
+        raise ForbiddenError("Bu satranç masasını yalnızca oyuncular yenileyebilir.")
+    game.fen = chess.STARTING_FEN
+    game.turn = "white"
+    game.move_history = []
+    game.winner_user_id = None
+    game.result = None
+    game.draw_offer_user_id = None
+    game.status = "active" if game.black_user_id is not None else "waiting"
+    await session.commit()
+    return await get_room(session, room.code)
+
+
+async def resign_chess_game(session: AsyncSession, room: Room, actor: User) -> Room:
+    await _require_member(session, room, actor)
+    game = await session.scalar(select(ChessGame).where(ChessGame.room_id == room.id))
+    if game is None or game.status != "active" or actor.id not in {game.white_user_id, game.black_user_id}:
+        raise ConflictError("Teslim olabileceğiniz aktif bir oyun yok.")
+    game.status = "finished"
+    game.result = "resignation"
+    game.winner_user_id = game.black_user_id if actor.id == game.white_user_id else game.white_user_id
+    game.draw_offer_user_id = None
+    await session.commit()
+    return await get_room(session, room.code)
+
+
+async def offer_or_accept_chess_draw(session: AsyncSession, room: Room, actor: User) -> Room:
+    await _require_member(session, room, actor)
+    game = await session.scalar(select(ChessGame).where(ChessGame.room_id == room.id))
+    if game is None or game.status != "active" or actor.id not in {game.white_user_id, game.black_user_id}:
+        raise ConflictError("Beraberlik teklif edebileceğiniz aktif bir oyun yok.")
+    if game.draw_offer_user_id is None:
+        game.draw_offer_user_id = actor.id
+        opponent_id = game.black_user_id if actor.id == game.white_user_id else game.white_user_id
+        opponent = await session.get(User, opponent_id)
+        if opponent is not None and opponent.spotify_id.startswith("jambox-test-opponent-"):
+            game.status = "finished"
+            game.result = "1/2-1/2"
+            game.draw_offer_user_id = None
+    elif game.draw_offer_user_id != actor.id:
+        game.status = "finished"
+        game.result = "1/2-1/2"
+        game.winner_user_id = None
+        game.draw_offer_user_id = None
+    else:
+        game.draw_offer_user_id = None
+    await session.commit()
+    return await get_room(session, room.code)
+
+
 async def make_chess_move(session: AsyncSession, room: Room, actor: User, payload: ChessMoveCreate) -> Room:
     await _require_member(session, room, actor)
     game = await session.scalar(select(ChessGame).where(ChessGame.room_id == room.id))
@@ -235,6 +288,7 @@ async def make_chess_move(session: AsyncSession, room: Room, actor: User, payloa
     if move not in board.legal_moves:
         raise ConflictError("Bu hamle geçerli değil.")
     board.push(move)
+    game.draw_offer_user_id = None
     history = [*(game.move_history or []), move.uci()]
 
     test_opponent = (
