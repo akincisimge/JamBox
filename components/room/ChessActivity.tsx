@@ -41,6 +41,7 @@ export function ChessActivity({
   game, currentUserId, busy, onCreate, onJoin, onAddTestOpponent, onMove, onRestart, onResign, onDraw,
 }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
+  const canUseJamBot = process.env.NODE_ENV === "development";
   const board = useMemo(() => boardFromFen(game?.fen), [game?.fen]);
   const legalMoves = game?.legal_moves ?? [];
   const isPlayer = game?.white_user_id === currentUserId || game?.black_user_id === currentUserId;
@@ -95,10 +96,10 @@ export function ChessActivity({
         {game?.status === "waiting" && game.creator_id === currentUserId && (
           <>
             <div className="chess-waiting"><i /> Sohbetteki davetin kabul edilmesi bekleniyor</div>
-            <button className="chess-test-button" onClick={onAddTestOpponent} disabled={busy}>⚙ Test rakibi ekle</button>
+            {canUseJamBot && <button className="chess-test-button" onClick={onAddTestOpponent} disabled={busy}>♟ JamBot ile oyna</button>}
           </>
         )}
-        {game?.status === "active" && <div className="chess-turn">{game.turn === "white" ? "Beyaz" : "Siyah"} hamlede {canMove && "· Sıra sende"}</div>}
+        {game?.status === "active" && <div className="chess-turn" role="status" aria-live="polite">{game.turn === "white" ? "Beyaz" : "Siyah"} hamlede {canMove && "· Sıra sende"}</div>}
         {game?.status === "finished" && <div className="chess-turn">{resultText}</div>}
         {game && (
           <div className="chess-players">
