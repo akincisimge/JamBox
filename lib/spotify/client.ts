@@ -120,7 +120,7 @@ export async function searchSpotifyTracks(
   if (!trimmedQuery) return [];
 
   const data = await spotifyFetch<{ tracks?: { items?: SpotifyTrack[] } }>(
-    `/search?type=track&limit=12&q=${encodeURIComponent(trimmedQuery)}`,
+    `/search?type=track&q=${encodeURIComponent(trimmedQuery)}`,
   );
   return data.tracks?.items ?? [];
 }
