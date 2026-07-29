@@ -25,6 +25,9 @@ import {
   joinJamBoxRoom,
   leaveJamBoxRoom,
   makeJamBoxChessMove,
+  offerJamBoxChessDraw,
+  resignJamBoxChessGame,
+  restartJamBoxChessGame,
   registerJamBoxUser,
   sendJamBoxMessage,
   toggleJamBoxMessageReaction,
@@ -554,6 +557,46 @@ const openSpotifyPlaylist = async (
       setToast("Satranç masasına katıldın.");
     } catch (error) {
       setToast(error instanceof JamBoxApiError ? error.message : "Satranç masasına katılamadın.");
+    } finally {
+      setChessBusy(false);
+    }
+  }
+
+  async function restartChessGame() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setChessBusy(true);
+    try {
+      setActiveRoom(await restartJamBoxChessGame(jamBoxUserId, activeRoom.code));
+      setToast("Yeni satranç oyunu başladı.");
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Yeni oyun başlatılamadı.");
+    } finally {
+      setChessBusy(false);
+    }
+  }
+
+  async function resignChessGame() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setChessBusy(true);
+    try {
+      setActiveRoom(await resignJamBoxChessGame(jamBoxUserId, activeRoom.code));
+      setToast("Oyundan teslim oldun.");
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Teslim işlemi tamamlanamadı.");
+    } finally {
+      setChessBusy(false);
+    }
+  }
+
+  async function handleChessDraw() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setChessBusy(true);
+    try {
+      const room = await offerJamBoxChessDraw(jamBoxUserId, activeRoom.code);
+      setActiveRoom(room);
+      setToast(room.chess_game?.status === "finished" ? "Oyun beraberlikle tamamlandı." : "Beraberlik durumu güncellendi.");
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Beraberlik işlemi tamamlanamadı.");
     } finally {
       setChessBusy(false);
     }
@@ -1158,6 +1201,9 @@ const openSpotifyPlaylist = async (
               onJoin={acceptChessInvite}
               onAddTestOpponent={addChessTestOpponent}
               onMove={playChessMove}
+              onRestart={restartChessGame}
+              onResign={resignChessGame}
+              onDraw={handleChessDraw}
             />
           </section>
 
