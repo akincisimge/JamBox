@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import uuid
+
+import chess
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -91,6 +93,12 @@ class ChessGame(TimestampMixin, Base):
     move_history: Mapped[list[str]] = mapped_column(JSON, default=list)
     winner_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     result: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+    @property
+    def legal_moves(self) -> list[str]:
+        if self.status != "active":
+            return []
+        return [move.uci() for move in chess.Board(self.fen).legal_moves]
 
     room: Mapped[Room] = relationship(back_populates="chess_game")
     creator: Mapped[User] = relationship(foreign_keys=[creator_id])
