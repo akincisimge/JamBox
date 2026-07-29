@@ -108,6 +108,7 @@ class RoomMessage(TimestampMixin, Base):
         index=True,
     )
     text: Mapped[str] = mapped_column(String(500))
+    reactions: Mapped[dict[str, list[str]]] = mapped_column(JSON, default=dict)
 
     room: Mapped[Room] = relationship(back_populates="messages")
     user: Mapped[User] = relationship()
