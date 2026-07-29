@@ -1,4 +1,5 @@
 import type {
+  ChatMessage,
   JamBoxPlayback,
   JamBoxRoom,
   JamBoxUser,
@@ -94,6 +95,7 @@ export async function getJamBoxRoom(code: string): Promise<JamBoxRoom> {
 type RoomSocketHandlers = {
   onRoomUpdated: () => void;
   onPlaybackUpdated: () => void;
+  onMessageCreated: (message: ChatMessage) => void;
   onRoomClosed: () => void;
 };
 
@@ -120,7 +122,7 @@ export function connectToJamBoxRoom(
   };
 
   const handleMessage = (event: MessageEvent<string>) => {
-    let message: { type?: string };
+    let message: { type?: string; message?: ChatMessage };
     try {
       message = JSON.parse(event.data) as { type?: string };
     } catch {
@@ -132,6 +134,9 @@ export function connectToJamBoxRoom(
     }
     if (message.type === "playback_updated") {
       handlers.onPlaybackUpdated();
+    }
+    if (message.type === "message_created" && message.message) {
+      handlers.onMessageCreated(message.message);
     }
     if (message.type === "room_closed") {
       handlers.onRoomClosed();
@@ -170,6 +175,21 @@ export async function updateJamBoxPlayback(
       method: "PUT",
       headers: { "X-User-Id": userId },
       body: JSON.stringify(playback),
+    },
+  );
+}
+
+export async function sendJamBoxMessage(
+  userId: string,
+  code: string,
+  text: string,
+): Promise<ChatMessage> {
+  return apiFetch<ChatMessage>(
+    `/rooms/${encodeURIComponent(code)}/messages`,
+    {
+      method: "POST",
+      headers: { "X-User-Id": userId },
+      body: JSON.stringify({ text: text.trim() }),
     },
   );
 }
