@@ -14,6 +14,7 @@ import {
   joinJamBoxRoom,
   leaveJamBoxRoom,
   registerJamBoxUser,
+  sendJamBoxMessage,
   updateJamBoxPlayback,
 } from "../lib/jambox/client";
 import {
@@ -30,8 +31,9 @@ import {
   currentPlaybackPosition,
   skipSpotifyPlayback,
 } from "../lib/spotify/playback";
-import { initialMessages, initialQueue } from "../mocks/room";
+import { initialQueue } from "../mocks/room";
 import type {
+  ChatMessage,
   JamBoxRoom,
   SpotifyPlaylist,
   SpotifyProfile,
@@ -73,7 +75,7 @@ const [playlistError, setPlaylistError] =
   const [playbackClock, setPlaybackClock] = useState(0);
   const [demoIsPlaying, setDemoIsPlaying] = useState(true);
   const [queue, setQueue] = useState(initialQueue);
-  const [messages, setMessages] = useState(initialMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState("");
   const [toast, setToast] = useState("");
 
@@ -127,6 +129,13 @@ const [playlistError, setPlaylistError] =
         } catch (error) {
           console.error("Oynatma durumu güncellenemedi:", error);
         }
+      },
+      onMessageCreated: (newMessage) => {
+        setMessages((items) =>
+          items.some((item) => item.id === newMessage.id)
+            ? items
+            : [...items, newMessage],
+        );
       },
       onRoomClosed: () => {
         setActiveRoom(null);
@@ -268,6 +277,7 @@ const openSpotifyPlaylist = async (
 
       setJamBoxUserId(user.id);
       setActiveRoom(room);
+      setMessages(room.messages);
       setRoomName(room.name);
       setRoomCode(room.code);
       setModal(null);
@@ -448,23 +458,30 @@ const openSpotifyPlaylist = async (
     );
   }
 
-  function sendMessage(
+  async function sendMessage(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
     if (!message.trim()) return;
 
-    setMessages((items) => [
-      ...items,
-      {
-        name: "You",
-        text: message.trim(),
-        color: "cream",
-      },
-    ]);
-
+    const text = message.trim();
     setMessage("");
+    try {
+      const sentMessage = await sendJamBoxMessage(jamBoxUserId, roomCode, text);
+      setMessages((items) =>
+        items.some((item) => item.id === sentMessage.id)
+          ? items
+          : [...items, sentMessage],
+      );
+    } catch (error) {
+      setMessage(text);
+      setToast(
+        error instanceof JamBoxApiError
+          ? error.message
+          : "Mesaj gönderilemedi.",
+      );
+    }
   }
 
   async function copyCode() {
@@ -640,16 +657,18 @@ const openSpotifyPlaylist = async (
               {messages.map((item, index) => (
                 <div
                   className="message"
-                  key={`${item.name}-${index}`}
+                  key={item.id}
                 >
                   <span
-                    className={`avatar small ${item.color}`}
+                    className={`avatar small ${
+                      ["purple", "coral", "blue", "cream"][index % 4]
+                    }`}
                   >
-                    {item.name.slice(0, 1)}
+                    {item.user.display_name.slice(0, 1).toUpperCase()}
                   </span>
 
                   <div>
-                    <strong>{item.name}</strong>
+                    <strong>{item.user.display_name}</strong>
                     <p>{item.text}</p>
                   </div>
                 </div>
