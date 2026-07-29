@@ -964,15 +964,16 @@ const openSpotifyPlaylist = async (
             </div>
           </section>
 
+          <button
+            className="music-drawer-toggle"
+            onClick={() => setMusicPanelCollapsed((collapsed) => !collapsed)}
+            aria-label={musicPanelCollapsed ? "Müzik panelini aç" : "Müzik panelini kapat"}
+            title={musicPanelCollapsed ? "Müzik panelini aç" : "Müzik panelini kapat"}
+          >
+            {musicPanelCollapsed ? "‹" : "›"}
+          </button>
+
           <section className="queue-panel panel music-library-panel">
-            <button
-              className="music-drawer-toggle"
-              onClick={() => setMusicPanelCollapsed((collapsed) => !collapsed)}
-              aria-label={musicPanelCollapsed ? "Müzik panelini aç" : "Müzik panelini kapat"}
-              title={musicPanelCollapsed ? "Müzik panelini aç" : "Müzik panelini kapat"}
-            >
-              {musicPanelCollapsed ? "‹" : "›"}
-            </button>
             <div className="section-heading queue-heading">
               <div>
                 <span className="music-panel-eyebrow">ROOM MUSIC</span>
