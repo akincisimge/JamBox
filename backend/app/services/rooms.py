@@ -191,6 +191,47 @@ async def create_message(
     return message
 
 
+async def toggle_message_reaction(
+    session: AsyncSession,
+    room: Room,
+    actor: User,
+    message_id: uuid.UUID,
+    emoji: str,
+) -> RoomMessage:
+    membership = await session.get(
+        RoomMember,
+        {"room_id": room.id, "user_id": actor.id},
+    )
+    if membership is None:
+        raise NotFoundError("Kullanıcı bu odada değil.")
+
+    message = await session.scalar(
+        select(RoomMessage)
+        .where(RoomMessage.id == message_id, RoomMessage.room_id == room.id)
+        .options(selectinload(RoomMessage.user))
+    )
+    if message is None:
+        raise NotFoundError("Mesaj bulunamadı.")
+
+    reactions = {key: list(value) for key, value in (message.reactions or {}).items()}
+    user_id = str(actor.id)
+    users = reactions.get(emoji, [])
+    if user_id in users:
+        users.remove(user_id)
+    else:
+        users.append(user_id)
+
+    if users:
+        reactions[emoji] = users
+    else:
+        reactions.pop(emoji, None)
+
+    message.reactions = reactions
+    await session.commit()
+    await session.refresh(message)
+    return message
+
+
 async def close_room(session: AsyncSession, room: Room, actor: User) -> None:
     if room.owner_id != actor.id:
         raise ForbiddenError("Odayı yalnızca oda sahibi kapatabilir.")
