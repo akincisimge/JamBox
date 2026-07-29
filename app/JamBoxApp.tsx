@@ -757,6 +757,15 @@ const openSpotifyPlaylist = async (
           </button>
         </header>
 
+        <button
+          className="music-drawer-toggle"
+          onClick={() => setMusicPanelCollapsed((collapsed) => !collapsed)}
+          aria-label={musicPanelCollapsed ? "Müzik panelini aç" : "Müzik panelini kapat"}
+          title={musicPanelCollapsed ? "Müzik panelini aç" : "Müzik panelini kapat"}
+        >
+          {musicPanelCollapsed ? "‹" : "›"}
+        </button>
+
         <section className="room-layout">
           <aside className="listeners-panel panel">
             <div className="section-heading">
@@ -963,15 +972,6 @@ const openSpotifyPlaylist = async (
               </button>
             </div>
           </section>
-
-          <button
-            className="music-drawer-toggle"
-            onClick={() => setMusicPanelCollapsed((collapsed) => !collapsed)}
-            aria-label={musicPanelCollapsed ? "Müzik panelini aç" : "Müzik panelini kapat"}
-            title={musicPanelCollapsed ? "Müzik panelini aç" : "Müzik panelini kapat"}
-          >
-            {musicPanelCollapsed ? "‹" : "›"}
-          </button>
 
           <section className="queue-panel panel music-library-panel">
             <div className="section-heading queue-heading">
