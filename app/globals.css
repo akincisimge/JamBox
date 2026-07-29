@@ -2318,3 +2318,18 @@ a { color: inherit; text-decoration: none; }
 @media(max-width:900px){.room-page .chess-activity{grid-template-columns:1fr}.room-page .chess-board{width:min(100%,520px);justify-self:center}}
 @media(max-width:520px){.room-page .chess-board{border-radius:13px}.room-page .chess-board button{font-size:clamp(24px,10vw,40px)}.room-page .chess-invite-card{align-items:flex-start;flex-wrap:wrap}.room-page .chess-invite-card button{width:100%;margin:2px 0 0}}
 @media(prefers-reduced-motion:reduce){.room-page .chess-waiting i{animation:none}}
+
+
+.room-page .chess-test-button{
+  min-height:38px;display:inline-flex;align-items:center;justify-content:center;
+  margin-top:-7px;padding:0 13px;color:var(--muted);
+  background:rgba(255,255,255,.025);
+  border:1px dashed color-mix(in srgb,var(--ambient-a) 28%,rgba(255,255,255,.12));
+  border-radius:11px;cursor:pointer;font-size:10px;font-weight:800;
+  transition:color 160ms ease,background 160ms ease,border-color 160ms ease
+}
+.room-page .chess-test-button:hover:not(:disabled){
+  color:#fff;background:color-mix(in srgb,var(--ambient-a) 11%,rgba(255,255,255,.035));
+  border-color:color-mix(in srgb,var(--ambient-a) 55%,rgba(255,255,255,.18))
+}
+.room-page .chess-test-button:disabled{opacity:.45;cursor:wait}
