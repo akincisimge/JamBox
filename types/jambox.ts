@@ -64,6 +64,8 @@ export type ChessGame = {
   turn: "white" | "black";
   move_history: string[];
   legal_moves: string[];
+  move_labels: string[];
+  draw_offer_user_id: string | null;
   winner_user_id: string | null;
   result: string | null;
   created_at: string;
