@@ -7,6 +7,7 @@ from app.models.room import RoomMember
 from app.realtime.rooms import room_connections
 from app.schemas.room import (
     MessageCreate,
+    MessageReactionToggle,
     MessageResponse,
     MusicPermissionUpdate,
     PlaybackUpdate,
@@ -22,6 +23,7 @@ from app.services.rooms import (
     get_user,
     join_room,
     leave_room,
+    toggle_message_reaction,
     update_music_permission,
     update_playback,
 )
@@ -156,6 +158,29 @@ async def send_room_message(
     await room_connections.broadcast(
         room.code,
         {"type": "message_created", "message": response.model_dump(mode="json")},
+    )
+    return response
+
+
+@router.put(
+    "/{code}/messages/{message_id}/reactions",
+    response_model=MessageResponse,
+)
+async def react_to_room_message(
+    code: str,
+    message_id: uuid.UUID,
+    payload: MessageReactionToggle,
+    session: DatabaseSession,
+    current_user: CurrentUser,
+) -> MessageResponse:
+    room = await get_room(session, code)
+    message = await toggle_message_reaction(
+        session, room, current_user, message_id, payload.emoji
+    )
+    response = MessageResponse.model_validate(message)
+    await room_connections.broadcast(
+        room.code,
+        {"type": "message_updated", "message": response.model_dump(mode="json")},
     )
     return response
 
