@@ -35,7 +35,6 @@ class PlaybackResponse(PlaybackUpdate):
 
 class MessageCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
-
     text: str = Field(min_length=1, max_length=500)
 
 
@@ -50,8 +49,35 @@ class MessageResponse(BaseModel):
     user_id: uuid.UUID
     text: str
     reactions: dict[str, list[str]] = Field(default_factory=dict)
+    message_type: str = "text"
+    payload: dict[str, str] = Field(default_factory=dict)
     created_at: datetime
     user: UserResponse
+
+
+class ChessMoveCreate(BaseModel):
+    from_square: str = Field(pattern=r"^[a-h][1-8]$")
+    to_square: str = Field(pattern=r"^[a-h][1-8]$")
+    promotion: str | None = Field(default=None, pattern=r"^[qrbn]$")
+
+
+class ChessGameResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    creator_id: uuid.UUID
+    white_user_id: uuid.UUID
+    black_user_id: uuid.UUID | None
+    status: str
+    fen: str
+    turn: str
+    move_history: list[str] = Field(default_factory=list)
+    winner_user_id: uuid.UUID | None
+    result: str | None
+    created_at: datetime
+    updated_at: datetime
+    white_user: UserResponse
+    black_user: UserResponse | None
 
 
 class RoomMemberResponse(BaseModel):
@@ -76,3 +102,4 @@ class RoomResponse(BaseModel):
     members: list[RoomMemberResponse]
     playback: PlaybackResponse | None
     messages: list[MessageResponse]
+    chess_game: ChessGameResponse | None
