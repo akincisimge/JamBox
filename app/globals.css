@@ -2333,3 +2333,24 @@ a { color: inherit; text-decoration: none; }
   border-color:color-mix(in srgb,var(--ambient-a) 55%,rgba(255,255,255,.18))
 }
 .room-page .chess-test-button:disabled{opacity:.45;cursor:wait}
+
+
+/* CHESS LEGAL MOVE GUIDANCE */
+.room-page .chess-board button{position:relative}
+.room-page .chess-board button.movable:not(:disabled){cursor:pointer}
+.room-page .chess-board button.movable:not(:disabled)::after{
+  content:"";position:absolute;inset:7px;border:1px solid color-mix(in srgb,var(--ambient-a) 48%,rgba(255,255,255,.28));
+  border-radius:8px;opacity:0;transition:opacity 140ms ease
+}
+.room-page .chess-board button.movable:not(:disabled):hover::after{opacity:1}
+.room-page .chess-board button.legal-target{cursor:pointer;filter:brightness(1.12)}
+.room-page .chess-board button.legal-target>i{
+  width:24%;aspect-ratio:1;position:absolute;z-index:2;border-radius:50%;
+  background:color-mix(in srgb,var(--ambient-a) 70%,#fff);
+  box-shadow:0 0 0 5px color-mix(in srgb,var(--ambient-a) 18%,transparent),0 0 18px var(--ambient-a);
+  pointer-events:none
+}
+.room-page .chess-board button.legal-target:not(:empty)>i{
+  width:70%;background:transparent;box-shadow:inset 0 0 0 4px color-mix(in srgb,var(--ambient-a) 78%,#fff),0 0 18px var(--ambient-a)
+}
+.room-page .chess-help{display:block;margin-top:14px;color:var(--muted);font-size:10px}
