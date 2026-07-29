@@ -8,42 +8,20 @@ export type Track = {
 };
 
 export type ChatMessage = {
-  name: string;
+  id: string;
+  user_id: string;
   text: string;
-  color: string;
+  reactions: Record<string, string[]>;
+  message_type: "text" | "chess_invite";
+  payload: Record<string, string>;
+  created_at: string;
+  user: JamBoxUser;
 };
 
-export type SpotifyProfile = {
-  id: string;
-  display_name: string;
-  images?: { url: string }[];
-};
-
-export type SpotifyPlaylist = {
-  id: string;
-  name: string;
-  images?: { url: string }[];
-  items?: { total: number };
-  tracks?: { total: number };
-  owner: { display_name: string };
-};
-
-export type SpotifyTrack = {
-  id: string;
-  name: string;
-  uri: string;
-  duration_ms: number;
-  artists: { name: string }[];
-  album: {
-    name: string;
-    images?: { url: string }[];
-  };
-};
-
-export type SpotifyPlaylistItem = {
-  item?: SpotifyTrack | null;
-  track?: SpotifyTrack | null;
-};
+export type SpotifyProfile = { id: string; display_name: string; images?: { url: string }[] };
+export type SpotifyPlaylist = { id: string; name: string; images?: { url: string }[]; items?: { total: number }; tracks?: { total: number }; owner: { display_name: string } };
+export type SpotifyTrack = { id: string; name: string; uri: string; duration_ms: number; artists: { name: string }[]; album: { name: string; images?: { url: string }[] } };
+export type SpotifyPlaylistItem = { item?: SpotifyTrack | null; track?: SpotifyTrack | null };
 
 export type JamBoxUser = {
   id: string;
@@ -76,6 +54,26 @@ export type JamBoxPlayback = {
   changed_at: string;
 };
 
+export type ChessGame = {
+  id: string;
+  creator_id: string;
+  white_user_id: string;
+  black_user_id: string | null;
+  status: "waiting" | "active" | "finished";
+  fen: string;
+  turn: "white" | "black";
+  move_history: string[];
+  legal_moves: string[];
+  move_labels: string[];
+  draw_offer_user_id: string | null;
+  winner_user_id: string | null;
+  result: string | null;
+  created_at: string;
+  updated_at: string;
+  white_user: JamBoxUser;
+  black_user: JamBoxUser | null;
+};
+
 export type JamBoxRoom = {
   id: string;
   code: string;
@@ -85,4 +83,6 @@ export type JamBoxRoom = {
   created_at: string;
   members: JamBoxRoomMember[];
   playback: JamBoxPlayback | null;
+  messages: ChatMessage[];
+  chess_game: ChessGame | null;
 };

@@ -80,7 +80,15 @@ async function spotifyFetch<T>(path: string): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Spotify isteği başarısız: ${response.status}`);
+    const body = (await response.json().catch(() => null)) as {
+      error?: { message?: string; reason?: string };
+    } | null;
+    const detail = body?.error?.message ?? body?.error?.reason;
+    throw new Error(
+      detail
+        ? `Spotify: ${detail}`
+        : `Spotify isteği başarısız: ${response.status}`,
+    );
   }
 
   return response.json() as Promise<T>;
@@ -88,7 +96,7 @@ async function spotifyFetch<T>(path: string): Promise<T> {
 
 export async function getSpotifyPlaylists(): Promise<SpotifyPlaylist[]> {
   const data = await spotifyFetch<{ items?: SpotifyPlaylist[] }>(
-    "/me/playlists?limit=12",
+    "/me/playlists?limit=5",
   );
   return data.items ?? [];
 }
@@ -103,6 +111,18 @@ export async function getSpotifyPlaylistTracks(
   return (data.items ?? [])
     .map((entry) => entry.item ?? entry.track)
     .filter((track): track is SpotifyTrack => Boolean(track?.id));
+}
+
+export async function searchSpotifyTracks(
+  query: string,
+): Promise<SpotifyTrack[]> {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return [];
+
+  const data = await spotifyFetch<{ tracks?: { items?: SpotifyTrack[] } }>(
+    `/search?type=track&q=${encodeURIComponent(trimmedQuery)}`,
+  );
+  return data.tracks?.items ?? [];
 }
 
 export async function startSpotifyLogin(): Promise<void> {

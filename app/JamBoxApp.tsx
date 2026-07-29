@@ -1,19 +1,36 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Icon } from "../components/ui/Icon";
 import { Logo } from "../components/ui/Logo";
 import { RoomModal } from "../components/room/RoomModal";
+import { ChessActivity } from "../components/room/ChessActivity";
 import { SpotifySignInButton } from "../components/spotify/SpotifySignInButton";
 import {
+  addJamBoxChessTestOpponent,
   closeJamBoxRoom,
   connectToJamBoxRoom,
+  createJamBoxChessGame,
   createJamBoxRoom,
   getJamBoxRoom,
   JamBoxApiError,
+  joinJamBoxChessGame,
   joinJamBoxRoom,
   leaveJamBoxRoom,
+  makeJamBoxChessMove,
+  offerJamBoxChessDraw,
+  resignJamBoxChessGame,
+  restartJamBoxChessGame,
   registerJamBoxUser,
+  sendJamBoxMessage,
+  toggleJamBoxMessageReaction,
   updateJamBoxPlayback,
 } from "../lib/jambox/client";
 import {
@@ -21,6 +38,7 @@ import {
   getSpotifyPlaylists,
   getSpotifyPlaylistTracks,
   readStoredSpotifyProfile,
+  searchSpotifyTracks,
   startSpotifyLogin,
 } from "../lib/spotify/client";
 import {
@@ -28,15 +46,21 @@ import {
   applyRoomPlayback,
   createSpotifyRoomPlayer,
   currentPlaybackPosition,
+  pauseSpotifyPlayback,
   skipSpotifyPlayback,
 } from "../lib/spotify/playback";
-import { initialMessages, initialQueue } from "../mocks/room";
+import { initialQueue } from "../mocks/room";
 import type {
+  ChatMessage,
   JamBoxRoom,
   SpotifyPlaylist,
   SpotifyProfile,
   SpotifyTrack,
 } from "../types/jambox";
+
+const ACTIVE_ROOM_STORAGE_KEY = "jambox_active_room_code";
+const roomPlaylistStorageKey = (roomCode: string) =>
+  `jambox_room_playlist:${roomCode}`;
 
 export default function JamBoxApp() {
   const [spotifyProfile, setSpotifyProfile] =
@@ -55,6 +79,9 @@ const [playlistLoading, setPlaylistLoading] =
 
 const [playlistError, setPlaylistError] =
   useState("");
+const [trackSearch, setTrackSearch] = useState("");
+const [searchResults, setSearchResults] = useState<SpotifyTrack[]>([]);
+const [searchLoading, setSearchLoading] = useState(false);
 
   const [view, setView] = useState<"home" | "room">("home");
   const [modal, setModal] =
@@ -70,12 +97,17 @@ const [playlistError, setPlaylistError] =
   const [spotifyDeviceId, setSpotifyDeviceId] = useState("");
   const [roomAudioEnabled, setRoomAudioEnabled] = useState(false);
   const spotifyPlayerRef = useRef<SpotifyPlayer | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [playbackClock, setPlaybackClock] = useState(0);
   const [demoIsPlaying, setDemoIsPlaying] = useState(true);
-  const [queue, setQueue] = useState(initialQueue);
-  const [messages, setMessages] = useState(initialMessages);
+  const [queue] = useState(initialQueue);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState("");
   const [toast, setToast] = useState("");
+  const musicPanelWidth = 460;
+  const [musicPanelCollapsed, setMusicPanelCollapsed] = useState(false);
+  const [chessBusy, setChessBusy] = useState(false);
+  const [themeColors, setThemeColors] = useState({ primary: "#ff5c8a", secondary: "#7c3aed", deep: "#090b1d" });
 
   useEffect(() => {
     const savedProfile = readStoredSpotifyProfile();
@@ -88,6 +120,48 @@ const [playlistError, setPlaylistError] =
 
     return () => window.clearTimeout(loadProfile);
   }, []);
+
+  useEffect(() => {
+    if (!spotifyProfile) return;
+
+    let cancelled = false;
+
+    const restoreActiveRoom = async () => {
+      const savedRoomCode = window.localStorage.getItem(
+        ACTIVE_ROOM_STORAGE_KEY,
+      );
+      if (!savedRoomCode) return;
+
+      try {
+        const user = await registerJamBoxUser(spotifyProfile);
+        const room = await getJamBoxRoom(savedRoomCode);
+        const isMember = room.members.some(
+          (member) => member.user_id === user.id,
+        );
+
+        if (!isMember) {
+          window.localStorage.removeItem(ACTIVE_ROOM_STORAGE_KEY);
+          return;
+        }
+
+        if (cancelled) return;
+        setJamBoxUserId(user.id);
+        setActiveRoom(room);
+        setMessages(room.messages);
+        setRoomName(room.name);
+        setRoomCode(room.code);
+        setView("room");
+      } catch {
+        window.localStorage.removeItem(ACTIVE_ROOM_STORAGE_KEY);
+      }
+    };
+
+    void restoreActiveRoom();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [spotifyProfile]);
 
   useEffect(() => {
     if (!spotifyProfile) return;
@@ -109,6 +183,55 @@ const [playlistError, setPlaylistError] =
   const activeRoomCode = activeRoom?.code;
 
   useEffect(() => {
+    if (activeRoomCode) {
+      window.localStorage.setItem(ACTIVE_ROOM_STORAGE_KEY, activeRoomCode);
+    }
+  }, [activeRoomCode]);
+
+  useEffect(() => {
+    if (
+      view !== "room" ||
+      !activeRoomCode ||
+      spotifyPlaylists.length === 0 ||
+      selectedPlaylist
+    ) {
+      return;
+    }
+
+    const savedPlaylistId = window.localStorage.getItem(
+      roomPlaylistStorageKey(activeRoomCode),
+    );
+    const savedPlaylist = spotifyPlaylists.find(
+      (playlist) => playlist.id === savedPlaylistId,
+    );
+    if (!savedPlaylist) return;
+
+    let cancelled = false;
+    setPlaylistLoading(true);
+    setPlaylistError("");
+
+    void getSpotifyPlaylistTracks(savedPlaylist.id)
+      .then((tracks) => {
+        if (!cancelled) {
+          setSelectedPlaylist(savedPlaylist);
+          setPlaylistTracks(tracks);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPlaylistError("Bu çalma listesindeki şarkılar alınamadı.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPlaylistLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRoomCode, selectedPlaylist, spotifyPlaylists, view]);
+
+  useEffect(() => {
     if (view !== "room" || !activeRoomCode || !jamBoxUserId) {
       return;
     }
@@ -128,8 +251,31 @@ const [playlistError, setPlaylistError] =
           console.error("Oynatma durumu güncellenemedi:", error);
         }
       },
+      onChessUpdated: async () => {
+        try {
+          setActiveRoom(await getJamBoxRoom(activeRoomCode));
+        } catch (error) {
+          console.error("Satranç masası güncellenemedi:", error);
+        }
+      },
+      onMessageCreated: (newMessage) => {
+        setMessages((items) =>
+          items.some((item) => item.id === newMessage.id)
+            ? items
+            : [...items, newMessage],
+        );
+      },
+      onMessageUpdated: (updatedMessage) => {
+        setMessages((items) =>
+          items.map((item) =>
+            item.id === updatedMessage.id ? updatedMessage : item,
+          ),
+        );
+      },
       onRoomClosed: () => {
+        window.localStorage.removeItem(ACTIVE_ROOM_STORAGE_KEY);
         setActiveRoom(null);
+        setMessages([]);
         setView("home");
         setToast("Oda sahibi odayı kapattı.");
       },
@@ -148,6 +294,12 @@ const [playlistError, setPlaylistError] =
         }
         spotifyPlayerRef.current = player;
         setSpotifyDeviceId(deviceId);
+        player.addListener("not_ready", ({ device_id }) => {
+          if (device_id === deviceId) {
+            setSpotifyDeviceId("");
+            setRoomAudioEnabled(false);
+          }
+        });
       })
       .catch((error) => {
         setToast(
@@ -165,6 +317,60 @@ const [playlistError, setPlaylistError] =
       setRoomAudioEnabled(false);
     };
   }, [spotifyProfile, view]);
+
+  useEffect(() => {
+    const artwork = activeRoom?.playback?.album_image_url;
+    if (!artwork) {
+      setThemeColors({ primary: "#ff5c8a", secondary: "#7c3aed", deep: "#090b1d" });
+      return;
+    }
+
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.src = artwork;
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 24;
+      canvas.height = 24;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) return;
+      context.drawImage(image, 0, 0, 24, 24);
+      const pixels = context.getImageData(0, 0, 24, 24).data;
+      const colors: Array<{ r: number; g: number; b: number; score: number }> = [];
+      for (let index = 0; index < pixels.length; index += 16) {
+        const r = pixels[index];
+        const g = pixels[index + 1];
+        const b = pixels[index + 2];
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const saturation = max - min;
+        const brightness = (r + g + b) / 3;
+        if (brightness > 28 && brightness < 235) {
+          colors.push({ r, g, b, score: saturation * 1.6 + brightness * .25 });
+        }
+      }
+      colors.sort((a, b) => b.score - a.score);
+      const primary = colors[0] ?? { r: 255, g: 92, b: 138 };
+      const secondary =
+        colors.find((color) =>
+          Math.abs(color.r - primary.r) +
+          Math.abs(color.g - primary.g) +
+          Math.abs(color.b - primary.b) > 120
+        ) ?? colors[Math.min(4, colors.length - 1)] ?? { r: 124, g: 58, b: 237 };
+      setThemeColors({
+        primary: `rgb(${primary.r} ${primary.g} ${primary.b})`,
+        secondary: `rgb(${secondary.r} ${secondary.g} ${secondary.b})`,
+        deep: `rgb(${Math.round(primary.r * .11)} ${Math.round(primary.g * .11)} ${Math.round(primary.b * .11)})`,
+      });
+    };
+  }, [activeRoom?.playback?.album_image_url]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: messages.length > 1 ? "smooth" : "auto",
+      block: "end",
+    });
+  }, [messages.length]);
 
   const playback = activeRoom?.playback ?? null;
   const canControlMusic =
@@ -196,6 +402,12 @@ const openSpotifyPlaylist = async (
   playlist: SpotifyPlaylist
 ) => {
   setSelectedPlaylist(playlist);
+  if (activeRoomCode) {
+    window.localStorage.setItem(
+      roomPlaylistStorageKey(activeRoomCode),
+      playlist.id,
+    );
+  }
   setPlaylistTracks([]);
   setPlaylistError("");
   setPlaylistLoading(true);
@@ -231,15 +443,14 @@ const openSpotifyPlaylist = async (
 
   const logoutFromSpotify = () => {
     clearSpotifySession();
+    window.localStorage.removeItem(ACTIVE_ROOM_STORAGE_KEY);
 
     setSpotifyProfile(null);
     setSpotifyPlaylists([]);
+    setActiveRoom(null);
+    setMessages([]);
+    setView("home");
   };
-
-  const sortedQueue = useMemo(
-    () => [...queue].sort((a, b) => b.votes - a.votes),
-    [queue]
-  );
 
   function openRoom(kind: "create" | "join") {
     setRoomError("");
@@ -268,8 +479,10 @@ const openSpotifyPlaylist = async (
 
       setJamBoxUserId(user.id);
       setActiveRoom(room);
+      setMessages(room.messages);
       setRoomName(room.name);
       setRoomCode(room.code);
+      window.localStorage.setItem(ACTIVE_ROOM_STORAGE_KEY, room.code);
       setModal(null);
       setView("room");
     } catch (error) {
@@ -285,6 +498,7 @@ const openSpotifyPlaylist = async (
 
   async function exitRoom() {
     if (!activeRoom || !jamBoxUserId) {
+      window.localStorage.removeItem(ACTIVE_ROOM_STORAGE_KEY);
       setView("home");
       return;
     }
@@ -296,7 +510,9 @@ const openSpotifyPlaylist = async (
         await leaveJamBoxRoom(jamBoxUserId, activeRoom.code);
       }
 
+      window.localStorage.removeItem(ACTIVE_ROOM_STORAGE_KEY);
       setActiveRoom(null);
+      setMessages([]);
       setView("home");
     } catch (error) {
       setToast(
@@ -307,20 +523,136 @@ const openSpotifyPlaylist = async (
     }
   }
 
+  async function openChessTable() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setChessBusy(true);
+    try {
+      setActiveRoom(await createJamBoxChessGame(jamBoxUserId, activeRoom.code));
+      setToast("Satranç daveti sohbete gönderildi.");
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Satranç masası açılamadı.");
+    } finally {
+      setChessBusy(false);
+    }
+  }
+
+  async function addChessTestOpponent() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setChessBusy(true);
+    try {
+      setActiveRoom(await addJamBoxChessTestOpponent(jamBoxUserId, activeRoom.code));
+      setToast("JamBot masaya katıldı. İlk hamle sende.");
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Test rakibi eklenemedi.");
+    } finally {
+      setChessBusy(false);
+    }
+  }
+
+  async function acceptChessInvite() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setChessBusy(true);
+    try {
+      setActiveRoom(await joinJamBoxChessGame(jamBoxUserId, activeRoom.code));
+      setToast("Satranç masasına katıldın.");
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Satranç masasına katılamadın.");
+    } finally {
+      setChessBusy(false);
+    }
+  }
+
+  async function restartChessGame() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setChessBusy(true);
+    try {
+      setActiveRoom(await restartJamBoxChessGame(jamBoxUserId, activeRoom.code));
+      setToast("Yeni satranç oyunu başladı.");
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Yeni oyun başlatılamadı.");
+    } finally {
+      setChessBusy(false);
+    }
+  }
+
+  async function resignChessGame() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setChessBusy(true);
+    try {
+      setActiveRoom(await resignJamBoxChessGame(jamBoxUserId, activeRoom.code));
+      setToast("Oyundan teslim oldun.");
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Teslim işlemi tamamlanamadı.");
+    } finally {
+      setChessBusy(false);
+    }
+  }
+
+  async function handleChessDraw() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setChessBusy(true);
+    try {
+      const room = await offerJamBoxChessDraw(jamBoxUserId, activeRoom.code);
+      setActiveRoom(room);
+      setToast(room.chess_game?.status === "finished" ? "Oyun beraberlikle tamamlandı." : "Beraberlik durumu güncellendi.");
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Beraberlik işlemi tamamlanamadı.");
+    } finally {
+      setChessBusy(false);
+    }
+  }
+
+  async function playChessMove(from: string, to: string, promotion?: string) {
+    if (!activeRoom || !jamBoxUserId) return;
+    setChessBusy(true);
+    try {
+      setActiveRoom(await makeJamBoxChessMove(jamBoxUserId, activeRoom.code, from, to, promotion));
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Hamle yapılamadı.");
+    } finally {
+      setChessBusy(false);
+    }
+  }
+
   async function playTrackTogether(track: SpotifyTrack) {
     if (!activeRoom || !jamBoxUserId) return;
     try {
-      if (spotifyPlayerRef.current && spotifyDeviceId) {
-        await activateSpotifyRoomPlayer(
-          spotifyPlayerRef.current,
-          spotifyDeviceId,
-        );
+      let player = spotifyPlayerRef.current;
+      let deviceId = spotifyDeviceId;
+
+      if (!player || !deviceId) {
+        const created = await createSpotifyRoomPlayer((message) => setToast(message));
+        player = created.player;
+        deviceId = created.deviceId;
+        spotifyPlayerRef.current = player;
+        setSpotifyDeviceId(deviceId);
       }
+
+      try {
+        await activateSpotifyRoomPlayer(player, deviceId);
+      } catch (error) {
+        const isMissingDevice =
+          error instanceof Error &&
+          (error.message.includes("Device not found") ||
+            error.message.includes("404"));
+        if (!isMissingDevice) throw error;
+
+        player.disconnect();
+        const recreated = await createSpotifyRoomPlayer((message) => setToast(message));
+        player = recreated.player;
+        deviceId = recreated.deviceId;
+        spotifyPlayerRef.current = player;
+        setSpotifyDeviceId(deviceId);
+        await activateSpotifyRoomPlayer(player, deviceId);
+      }
+
       setRoomAudioEnabled(true);
       const room = await updateJamBoxPlayback(jamBoxUserId, activeRoom.code, {
         spotify_uri: track.uri,
         spotify_track_id: track.id,
-        queue_uris: playlistTracks.map((item) => item.uri),
+        queue_uris: playlistTracks.some((item) => item.uri === track.uri)
+          ? playlistTracks.map((item) => item.uri)
+          : [track.uri, ...playlistTracks.map((item) => item.uri)],
         title: track.name,
         artist: track.artists.map((artist) => artist.name).join(", "),
         album_image_url: track.album.images?.[0]?.url ?? null,
@@ -330,8 +662,6 @@ const openSpotifyPlaylist = async (
       });
       setActiveRoom(room);
       setSongPickerOpen(false);
-      setSelectedPlaylist(null);
-      setPlaylistTracks([]);
     } catch (error) {
       setToast(
         error instanceof JamBoxApiError
@@ -369,6 +699,10 @@ const openSpotifyPlaylist = async (
     if (!activeRoom?.playback || !jamBoxUserId) return;
     const current = activeRoom.playback;
     try {
+      if (current.is_playing && spotifyDeviceId) {
+        await pauseSpotifyPlayback(spotifyDeviceId);
+      }
+
       setActiveRoom(
         await updateJamBoxPlayback(jamBoxUserId, activeRoom.code, {
           spotify_uri: current.spotify_uri,
@@ -422,6 +756,13 @@ const openSpotifyPlaylist = async (
     }
   }
 
+  function formatMessageTime(timestamp: string): string {
+    return new Intl.DateTimeFormat("tr-TR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(timestamp));
+  }
+
   function formatTime(milliseconds: number): string {
     const seconds = Math.floor(milliseconds / 1000);
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
@@ -438,33 +779,83 @@ const openSpotifyPlaylist = async (
     [playback, playbackClock],
   );
 
-  function vote(id: number) {
-    setQueue((items) =>
-      items.map((item) =>
-        item.id === id
-          ? { ...item, votes: item.votes + 1 }
-          : item
-      )
-    );
+  async function playRandomTrack() {
+    if (!canControlMusic) {
+      setToast("Bu odada müzik kontrol yetkin yok.");
+      return;
+    }
+    if (playlistTracks.length === 0) {
+      setToast("Önce bir Spotify çalma listesi seç.");
+      return;
+    }
+
+    const randomTrack =
+      playlistTracks[Math.floor(Math.random() * playlistTracks.length)];
+    await playTrackTogether(randomTrack);
   }
 
-  function sendMessage(
+  async function searchTracks(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!trackSearch.trim()) return;
+
+    setSearchLoading(true);
+    try {
+      setSearchResults(await searchSpotifyTracks(trackSearch));
+    } catch (error) {
+      setToast(
+        error instanceof Error
+          ? error.message
+          : "Spotify araması yapılamadı.",
+      );
+    } finally {
+      setSearchLoading(false);
+    }
+  }
+
+  async function toggleMessageReaction(messageId: string, emoji: string) {
+    try {
+      const updated = await toggleJamBoxMessageReaction(
+        jamBoxUserId,
+        roomCode,
+        messageId,
+        emoji,
+      );
+      setMessages((items) =>
+        items.map((item) => (item.id === updated.id ? updated : item)),
+      );
+    } catch (error) {
+      setToast(
+        error instanceof JamBoxApiError
+          ? error.message
+          : "Mesaj reaksiyonu güncellenemedi.",
+      );
+    }
+  }
+
+  async function sendMessage(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
     if (!message.trim()) return;
 
-    setMessages((items) => [
-      ...items,
-      {
-        name: "You",
-        text: message.trim(),
-        color: "cream",
-      },
-    ]);
-
+    const text = message.trim();
     setMessage("");
+    try {
+      const sentMessage = await sendJamBoxMessage(jamBoxUserId, roomCode, text);
+      setMessages((items) =>
+        items.some((item) => item.id === sentMessage.id)
+          ? items
+          : [...items, sentMessage],
+      );
+    } catch (error) {
+      setMessage(text);
+      setToast(
+        error instanceof JamBoxApiError
+          ? error.message
+          : "Mesaj gönderilemedi.",
+      );
+    }
   }
 
   async function copyCode() {
@@ -478,7 +869,22 @@ const openSpotifyPlaylist = async (
 
   if (view === "room") {
     return (
-      <main className="site-shell room-page">
+      <main
+        className={`site-shell room-page${
+          musicPanelCollapsed ? " music-panel-collapsed" : ""
+        }`}
+        style={
+          {
+            "--room-album-art": playback?.album_image_url
+              ? `url("${playback.album_image_url}")`
+              : "none",
+            "--music-panel-width": `${musicPanelWidth}px`,
+            "--album-primary": themeColors.primary,
+            "--album-secondary": themeColors.secondary,
+            "--album-deep": themeColors.deep,
+          } as CSSProperties
+        }
+      >
         <header className="topbar room-topbar">
           <Logo />
 
@@ -506,7 +912,17 @@ const openSpotifyPlaylist = async (
           </button>
         </header>
 
+        <button
+          className="music-drawer-toggle"
+          onClick={() => setMusicPanelCollapsed((collapsed) => !collapsed)}
+          aria-label={musicPanelCollapsed ? "Müzik panelini aç" : "Müzik panelini kapat"}
+          title={musicPanelCollapsed ? "Müzik panelini aç" : "Müzik panelini kapat"}
+        >
+          {musicPanelCollapsed ? "‹" : "›"}
+        </button>
+
         <section className="room-layout">
+          <div className="room-left-column">
           <aside className="listeners-panel panel">
             <div className="section-heading">
               <h2>Listeners</h2>
@@ -541,7 +957,7 @@ const openSpotifyPlaylist = async (
             </button>
           </aside>
 
-          <section className="player-panel panel">
+          <section className={`player-panel panel${playback?.is_playing ? " is-playing" : ""}`}>
             <div className="now-playing-label">
               <span className="equalizer">
                 <i />
@@ -551,8 +967,20 @@ const openSpotifyPlaylist = async (
               NOW PLAYING
             </div>
 
+            <div className={`playback-health ${roomAudioEnabled ? "is-ready" : "is-waiting"}`}>
+              <i />
+              <span>
+                {!playback
+                  ? "Şarkı bekleniyor"
+                  : roomAudioEnabled
+                    ? "Spotify bağlı"
+                    : "Sesi etkinleştir"}
+              </span>
+            </div>
+
             {playback?.album_image_url ? (
               <img
+                key={playback.spotify_track_id}
                 className="large-art"
                 src={playback.album_image_url}
                 alt={`${playback.title} albüm kapağı`}
@@ -627,6 +1055,7 @@ const openSpotifyPlaylist = async (
               )}
             </p>
           </section>
+          </div>
 
           <aside className="chat-panel panel">
             <div className="section-heading">
@@ -639,21 +1068,109 @@ const openSpotifyPlaylist = async (
             <div className="messages">
               {messages.map((item, index) => (
                 <div
-                  className="message"
-                  key={`${item.name}-${index}`}
+                  className={`message${item.user_id === jamBoxUserId ? " own-message" : ""}`}
+                  key={item.id}
                 >
-                  <span
-                    className={`avatar small ${item.color}`}
-                  >
-                    {item.name.slice(0, 1)}
-                  </span>
+                  {item.user.avatar_url ? (
+                    <img
+                      className="avatar small message-avatar"
+                      src={item.user.avatar_url}
+                      alt=""
+                    />
+                  ) : (
+                    <span
+                      className={`avatar small ${
+                        ["purple", "coral", "blue", "cream"][index % 4]
+                      }`}
+                    >
+                      {item.user.display_name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
 
                   <div>
-                    <strong>{item.name}</strong>
+                    <div className="message-meta">
+                      <strong>
+                        {item.user_id === jamBoxUserId
+                          ? "Sen"
+                          : item.user.display_name}
+                      </strong>
+                      <time dateTime={item.created_at}>
+                        {formatMessageTime(item.created_at)}
+                      </time>
+                    </div>
                     <p>{item.text}</p>
+                    {item.message_type === "chess_invite" && (
+                      <div className="chess-invite-card">
+                        <span>♟</span>
+                        <div>
+                          <strong>Satranç daveti</strong>
+                          <small>Müzik devam ederken masaya katıl.</small>
+                        </div>
+                        {activeRoom?.chess_game?.status === "waiting" &&
+                          activeRoom.chess_game.creator_id !== jamBoxUserId && (
+                            <button type="button" onClick={acceptChessInvite} disabled={chessBusy}>
+                              Katıl
+                            </button>
+                          )}
+                        {activeRoom?.chess_game?.status === "active" && <b>Oyun başladı</b>}
+                      </div>
+                    )}
+                    <div className="message-reactions">
+                      {Object.entries(item.reactions ?? {}).map(
+                        ([emoji, userIds]) => (
+                          <button
+                            type="button"
+                            key={emoji}
+                            className={
+                              userIds.includes(jamBoxUserId) ? "is-active" : ""
+                            }
+                            onClick={() => toggleMessageReaction(item.id, emoji)}
+                            aria-label={`${emoji} reaksiyonunu değiştir`}
+                          >
+                            <span>{emoji}</span>
+                            <b>{userIds.length}</b>
+                          </button>
+                        ),
+                      )}
+                      <div className="reaction-add">
+                        {["❤️", "🔥", "😂", "👏"].map((emoji) => (
+                          <button
+                            type="button"
+                            key={emoji}
+                            onClick={() => toggleMessageReaction(item.id, emoji)}
+                            aria-label={`${emoji} reaksiyonu ekle`}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
+              <div ref={messagesEndRef} aria-hidden="true" />
+            </div>
+
+            <div className="chat-emoji-bar" aria-label="Emoji çubuğu">
+              <span className="emoji-bar-icon" aria-hidden="true">☺</span>
+              <div className="emoji-strip">
+                {[
+                  "😀", "😂", "🥹", "😍", "🥰", "😎", "🤩", "🥳",
+                  "😭", "🤯", "🫠", "🤭", "🫶", "🎵", "🎶", "🎧",
+                  "🎤", "🎸", "🪩", "🔥", "✨", "⚡", "💜", "🩷",
+                  "❤️", "🖤", "👏", "🙌",
+                ].map((emoji) => (
+                  <button
+                    type="button"
+                    key={emoji}
+                    onClick={() => setMessage((current) => `${current}${emoji}`)}
+                    aria-label={`${emoji} emojisini mesaja ekle`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+              <span className="emoji-scroll-hint" aria-hidden="true">›</span>
             </div>
 
             <form
@@ -675,55 +1192,163 @@ const openSpotifyPlaylist = async (
             </form>
           </aside>
 
-          <section className="queue-panel panel">
+          <section className="activities-panel panel" aria-labelledby="activities-title">
+            <ChessActivity
+              game={activeRoom?.chess_game ?? null}
+              currentUserId={jamBoxUserId}
+              busy={chessBusy}
+              onCreate={openChessTable}
+              onJoin={acceptChessInvite}
+              onAddTestOpponent={addChessTestOpponent}
+              onMove={playChessMove}
+              onRestart={restartChessGame}
+              onResign={resignChessGame}
+              onDraw={handleChessDraw}
+            />
+          </section>
+
+          <section className="queue-panel panel music-library-panel">
             <div className="section-heading queue-heading">
               <div>
-                <h2>Up next</h2>
+                <span className="music-panel-eyebrow">ROOM MUSIC</span>
+                <h2>{selectedPlaylist?.name ?? "Bir çalma listesi seç"}</h2>
                 <p>
-                  Vote to shape what plays next
+                  {selectedPlaylist
+                    ? `${playlistTracks.length} gerçek Spotify şarkısı`
+                    : "Oda için kullanılacak Spotify listesini belirle."}
                 </p>
               </div>
 
-              <button onClick={() => setSongPickerOpen(true)}>
-                <Icon name="plus" size={18} />
-                Add a song
-              </button>
+              <div className="music-panel-actions">
+                {selectedPlaylist && (
+                  <button
+                    onClick={playRandomTrack}
+                    disabled={!canControlMusic || playlistTracks.length === 0}
+                  >
+                    Karışık çal
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    if (activeRoomCode) {
+                      window.localStorage.removeItem(
+                        roomPlaylistStorageKey(activeRoomCode),
+                      );
+                    }
+                    setSelectedPlaylist(null);
+                    setPlaylistTracks([]);
+                    setPlaylistError("");
+                    setSongPickerOpen(true);
+                  }}
+                >
+                  <Icon name="plus" size={18} />
+                  {selectedPlaylist ? "Başka liste seç" : "Liste seç"}
+                </button>
+              </div>
             </div>
 
-            <div className="queue-list">
-              {sortedQueue.map((track, index) => (
-                <article
-                  className="queue-item"
-                  key={track.id}
-                >
-                  <span className="queue-index">
-                    0{index + 1}
-                  </span>
-
-                  <span
-                    className={`mini-art ${track.art}`}
-                  />
-
-                  <div className="queue-track">
-                    <strong>{track.title}</strong>
-                    <small>{track.artist}</small>
+            {selectedPlaylist ? (
+              <>
+                {playlistLoading && (
+                  <div className="music-state-card is-loading">
+                    <span className="music-state-spinner" />
+                    <div>
+                      <strong>Şarkılar hazırlanıyor</strong>
+                      <small>Spotify listesini odaya getiriyoruz…</small>
+                    </div>
                   </div>
+                )}
+                {playlistError && <p className="music-panel-error">{playlistError}</p>}
+                {!playlistLoading && !playlistError && playlistTracks.length === 0 && (
+                  <div className="music-state-card">
+                    <span className="music-state-icon">♫</span>
+                    <div>
+                      <strong>Bu liste şu an boş</strong>
+                      <small>Başka bir liste seçebilir veya aşağıdan şarkı arayabilirsin.</small>
+                    </div>
+                  </div>
+                )}
+                <div className="room-track-list">
+                  {playlistTracks.map((track, index) => (
+                    <button
+                      className="room-track-row"
+                      key={track.id}
+                      onClick={() => playTrackTogether(track)}
+                      disabled={!canControlMusic}
+                      title={
+                        canControlMusic
+                          ? "Bu şarkıyı odada çal"
+                          : "Müzik kontrol yetkin yok"
+                      }
+                    >
+                      <span className="queue-index">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      {track.album.images?.[0]?.url ? (
+                        <img src={track.album.images[0].url} alt="" />
+                      ) : (
+                        <span className="track-image-placeholder" />
+                      )}
+                      <span className="room-track-copy">
+                        <strong>{track.name}</strong>
+                        <small>
+                          {track.artists.map((artist) => artist.name).join(", ")}
+                        </small>
+                      </span>
+                      <Icon name="play" size={18} />
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <button
+                className="empty-music-library"
+                onClick={() => setSongPickerOpen(true)}
+              >
+                <Icon name="plus" size={22} />
+                Spotify çalma listesi seç
+              </button>
+            )}
 
-                  <span className="added-by">
-                    Added by{" "}
-                    <strong>{track.addedBy}</strong>
-                  </span>
+            <div className="spotify-room-search">
+              <div>
+                <h3>Listede olmayan bir şarkıyı ara</h3>
+                <p>Spotify kataloğunda sanatçı veya şarkı adıyla arama yap.</p>
+              </div>
+              <form onSubmit={searchTracks}>
+                <input
+                  value={trackSearch}
+                  onChange={(event) => setTrackSearch(event.target.value)}
+                  placeholder="Şarkı veya sanatçı ara"
+                  aria-label="Spotify şarkısı ara"
+                />
+                <button disabled={searchLoading || !trackSearch.trim()}>
+                  {searchLoading ? "Aranıyor…" : "Ara"}
+                </button>
+              </form>
 
-                  <button
-                    className="vote-button"
-                    onClick={() => vote(track.id)}
-                    aria-label={`Vote for ${track.title}`}
-                  >
-                    ▲{" "}
-                    <strong>{track.votes}</strong>
-                  </button>
-                </article>
-              ))}
+              {searchResults.length > 0 && (
+                <div className="search-track-results">
+                  {searchResults.map((track) => (
+                    <button
+                      key={track.id}
+                      onClick={() => playTrackTogether(track)}
+                      disabled={!canControlMusic}
+                    >
+                      {track.album.images?.[0]?.url && (
+                        <img src={track.album.images[0].url} alt="" />
+                      )}
+                      <span>
+                        <strong>{track.name}</strong>
+                        <small>
+                          {track.artists.map((artist) => artist.name).join(", ")}
+                        </small>
+                      </span>
+                      <Icon name="play" size={17} />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         </section>
@@ -765,8 +1390,14 @@ const openSpotifyPlaylist = async (
                   <button
                     className="ghost-button"
                     onClick={() => {
+                      if (activeRoomCode) {
+                        window.localStorage.removeItem(
+                          roomPlaylistStorageKey(activeRoomCode),
+                        );
+                      }
                       setSelectedPlaylist(null);
                       setPlaylistTracks([]);
+                      setPlaylistError("");
                     }}
                   >
                     ← Çalma listeleri

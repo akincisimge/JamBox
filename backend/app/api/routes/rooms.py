@@ -3,17 +3,36 @@ import uuid
 from fastapi import APIRouter, Response, WebSocket, WebSocketDisconnect, status
 
 from app.api.dependencies import CurrentUser, DatabaseSession
+from app.config import get_settings
 from app.models.room import RoomMember
 from app.realtime.rooms import room_connections
-from app.schemas.room import MusicPermissionUpdate, PlaybackUpdate, RoomCreate, RoomResponse
+from app.schemas.room import (
+    ChessMoveCreate,
+    MessageCreate,
+    MessageReactionToggle,
+    MessageResponse,
+    MusicPermissionUpdate,
+    PlaybackUpdate,
+    RoomCreate,
+    RoomResponse,
+)
 from app.services.errors import NotFoundError
 from app.services.rooms import (
+    add_chess_test_opponent,
     close_room,
+    create_chess_game,
+    create_message,
     create_room,
     get_room,
     get_user,
+    join_chess_game,
     join_room,
     leave_room,
+    make_chess_move,
+    offer_or_accept_chess_draw,
+    resign_chess_game,
+    restart_chess_game,
+    toggle_message_reaction,
     update_music_permission,
     update_playback,
 )
@@ -22,59 +41,42 @@ router = APIRouter(prefix="/rooms")
 
 
 @router.websocket("/{code}/ws")
-async def room_updates(
-    websocket: WebSocket,
-    code: str,
-    user_id: uuid.UUID,
-    session: DatabaseSession,
-) -> None:
+async def room_updates(websocket: WebSocket, code: str, user_id: uuid.UUID, session: DatabaseSession) -> None:
     try:
         room = await get_room(session, code)
         await get_user(session, user_id)
     except NotFoundError:
         await websocket.close(code=4404, reason="Oda veya kullanıcı bulunamadı.")
         return
-
-    membership = await session.get(
-        RoomMember,
-        {"room_id": room.id, "user_id": user_id},
-    )
+    membership = await session.get(RoomMember, {"room_id": room.id, "user_id": user_id})
     if membership is None:
         await websocket.close(code=4403, reason="Kullanıcı bu odada değil.")
         return
-
-    await room_connections.connect(room.code, websocket)
+    room_code = room.code
+    await session.close()
+    await room_connections.connect(room_code, websocket)
     await websocket.send_json({"type": "connected"})
-
     try:
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        room_connections.disconnect(room.code, websocket)
+        pass
+    finally:
+        room_connections.disconnect(room_code, websocket)
 
 
 @router.post("", response_model=RoomResponse, status_code=status.HTTP_201_CREATED)
-async def create_new_room(
-    payload: RoomCreate,
-    session: DatabaseSession,
-    current_user: CurrentUser,
-) -> RoomResponse:
-    room = await create_room(session, current_user, payload.name)
-    return RoomResponse.model_validate(room)
+async def create_new_room(payload: RoomCreate, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
+    return RoomResponse.model_validate(await create_room(session, current_user, payload.name))
 
 
 @router.get("/{code}", response_model=RoomResponse)
 async def read_room(code: str, session: DatabaseSession) -> RoomResponse:
-    room = await get_room(session, code)
-    return RoomResponse.model_validate(room)
+    return RoomResponse.model_validate(await get_room(session, code))
 
 
 @router.post("/{code}/join", response_model=RoomResponse)
-async def join_existing_room(
-    code: str,
-    session: DatabaseSession,
-    current_user: CurrentUser,
-) -> RoomResponse:
+async def join_existing_room(code: str, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
     room = await get_room(session, code)
     updated_room = await join_room(session, room, current_user)
     await room_connections.broadcast(room.code, {"type": "room_updated"})
@@ -82,11 +84,7 @@ async def join_existing_room(
 
 
 @router.post("/{code}/leave", status_code=status.HTTP_204_NO_CONTENT)
-async def leave_existing_room(
-    code: str,
-    session: DatabaseSession,
-    current_user: CurrentUser,
-) -> Response:
+async def leave_existing_room(code: str, session: DatabaseSession, current_user: CurrentUser) -> Response:
     room = await get_room(session, code)
     await leave_room(session, room, current_user)
     await room_connections.broadcast(room.code, {"type": "room_updated"})
@@ -94,44 +92,102 @@ async def leave_existing_room(
 
 
 @router.patch("/{code}/members/{user_id}/music-permission", response_model=RoomResponse)
-async def change_music_permission(
-    code: str,
-    user_id: uuid.UUID,
-    payload: MusicPermissionUpdate,
-    session: DatabaseSession,
-    current_user: CurrentUser,
-) -> RoomResponse:
+async def change_music_permission(code: str, user_id: uuid.UUID, payload: MusicPermissionUpdate, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
     room = await get_room(session, code)
-    updated_room = await update_music_permission(
-        session,
-        room,
-        current_user,
-        user_id,
-        payload.can_control_music,
-    )
+    updated_room = await update_music_permission(session, room, current_user, user_id, payload.can_control_music)
     await room_connections.broadcast(room.code, {"type": "room_updated"})
     return RoomResponse.model_validate(updated_room)
 
 
 @router.put("/{code}/playback", response_model=RoomResponse)
-async def change_playback(
-    code: str,
-    payload: PlaybackUpdate,
-    session: DatabaseSession,
-    current_user: CurrentUser,
-) -> RoomResponse:
+async def change_playback(code: str, payload: PlaybackUpdate, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
     room = await get_room(session, code)
     updated_room = await update_playback(session, room, current_user, payload)
     await room_connections.broadcast(room.code, {"type": "playback_updated"})
     return RoomResponse.model_validate(updated_room)
 
 
+@router.post("/{code}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+async def send_room_message(code: str, payload: MessageCreate, session: DatabaseSession, current_user: CurrentUser) -> MessageResponse:
+    room = await get_room(session, code)
+    message = await create_message(session, room, current_user, payload.text)
+    response = MessageResponse.model_validate(message)
+    await room_connections.broadcast(room.code, {"type": "message_created", "message": response.model_dump(mode="json")})
+    return response
+
+
+@router.put("/{code}/messages/{message_id}/reactions", response_model=MessageResponse)
+async def react_to_room_message(code: str, message_id: uuid.UUID, payload: MessageReactionToggle, session: DatabaseSession, current_user: CurrentUser) -> MessageResponse:
+    room = await get_room(session, code)
+    message = await toggle_message_reaction(session, room, current_user, message_id, payload.emoji)
+    response = MessageResponse.model_validate(message)
+    await room_connections.broadcast(room.code, {"type": "message_updated", "message": response.model_dump(mode="json")})
+    return response
+
+
+@router.post("/{code}/chess", response_model=RoomResponse, status_code=status.HTTP_201_CREATED)
+async def open_chess_table(code: str, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
+    room = await get_room(session, code)
+    updated_room, invite = await create_chess_game(session, room, current_user)
+    invite_response = MessageResponse.model_validate(invite)
+    await room_connections.broadcast(room.code, {"type": "message_created", "message": invite_response.model_dump(mode="json")})
+    await room_connections.broadcast(room.code, {"type": "chess_updated"})
+    return RoomResponse.model_validate(updated_room)
+
+
+@router.post("/{code}/chess/test-opponent", response_model=RoomResponse)
+async def add_test_chess_opponent(code: str, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
+    if get_settings().app_env != "development":
+        raise NotFoundError("Bu özellik yalnızca yerel geliştirme ortamında kullanılabilir.")
+    room = await get_room(session, code)
+    updated_room = await add_chess_test_opponent(session, room, current_user)
+    await room_connections.broadcast(room.code, {"type": "room_updated"})
+    await room_connections.broadcast(room.code, {"type": "chess_updated"})
+    return RoomResponse.model_validate(updated_room)
+
+
+@router.post("/{code}/chess/join", response_model=RoomResponse)
+async def accept_chess_invite(code: str, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
+    room = await get_room(session, code)
+    updated_room = await join_chess_game(session, room, current_user)
+    await room_connections.broadcast(room.code, {"type": "chess_updated"})
+    return RoomResponse.model_validate(updated_room)
+
+
+@router.post("/{code}/chess/restart", response_model=RoomResponse)
+async def restart_chess_table(code: str, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
+    room = await get_room(session, code)
+    updated_room = await restart_chess_game(session, room, current_user)
+    await room_connections.broadcast(room.code, {"type": "chess_updated"})
+    return RoomResponse.model_validate(updated_room)
+
+
+@router.post("/{code}/chess/resign", response_model=RoomResponse)
+async def resign_from_chess_game(code: str, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
+    room = await get_room(session, code)
+    updated_room = await resign_chess_game(session, room, current_user)
+    await room_connections.broadcast(room.code, {"type": "chess_updated"})
+    return RoomResponse.model_validate(updated_room)
+
+
+@router.post("/{code}/chess/draw", response_model=RoomResponse)
+async def handle_chess_draw(code: str, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
+    room = await get_room(session, code)
+    updated_room = await offer_or_accept_chess_draw(session, room, current_user)
+    await room_connections.broadcast(room.code, {"type": "chess_updated"})
+    return RoomResponse.model_validate(updated_room)
+
+
+@router.post("/{code}/chess/moves", response_model=RoomResponse)
+async def play_chess_move(code: str, payload: ChessMoveCreate, session: DatabaseSession, current_user: CurrentUser) -> RoomResponse:
+    room = await get_room(session, code)
+    updated_room = await make_chess_move(session, room, current_user, payload)
+    await room_connections.broadcast(room.code, {"type": "chess_updated"})
+    return RoomResponse.model_validate(updated_room)
+
+
 @router.delete("/{code}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_room(
-    code: str,
-    session: DatabaseSession,
-    current_user: CurrentUser,
-) -> Response:
+async def delete_room(code: str, session: DatabaseSession, current_user: CurrentUser) -> Response:
     room = await get_room(session, code)
     await close_room(session, room, current_user)
     await room_connections.broadcast(room.code, {"type": "room_closed"})

@@ -109,10 +109,21 @@ export function currentPlaybackPosition(playback: JamBoxPlayback): number {
   return Math.min(playback.position_ms + elapsed, playback.duration_ms);
 }
 
+export async function pauseSpotifyPlayback(deviceId: string): Promise<void> {
+  await playerRequest(`/me/player/pause?device_id=${encodeURIComponent(deviceId)}`, {
+    method: "PUT",
+  });
+}
+
 export async function applyRoomPlayback(
   playback: JamBoxPlayback,
   deviceId: string,
 ): Promise<void> {
+  if (!playback.is_playing) {
+    await pauseSpotifyPlayback(deviceId);
+    return;
+  }
+
   const positionMs = Math.floor(currentPlaybackPosition(playback));
   await playerRequest(`/me/player/play?device_id=${encodeURIComponent(deviceId)}`, {
     method: "PUT",
@@ -122,11 +133,6 @@ export async function applyRoomPlayback(
       position_ms: positionMs,
     }),
   });
-  if (!playback.is_playing) {
-    await playerRequest(`/me/player/pause?device_id=${encodeURIComponent(deviceId)}`, {
-      method: "PUT",
-    });
-  }
 }
 
 export async function skipSpotifyPlayback(

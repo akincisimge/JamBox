@@ -1,4 +1,4 @@
-import type { ChatMessage, Track } from "../types/jambox";
+import type { Track } from "../types/jambox";
 
 export const initialQueue: Track[] = [
   {
@@ -24,19 +24,6 @@ export const initialQueue: Track[] = [
     addedBy: "Jordan",
     votes: 7,
     art: "gold",
-  },
-];
-
-export const initialMessages: ChatMessage[] = [
-  {
-    name: "Maya",
-    text: "This one is perfect ✨",
-    color: "coral",
-  },
-  {
-    name: "Alex",
-    text: "Turn it up!",
-    color: "purple",
   },
 ];
 
