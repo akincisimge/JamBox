@@ -920,20 +920,32 @@ const openSpotifyPlaylist = async (
             <div className="messages">
               {messages.map((item, index) => (
                 <div
-                  className="message"
+                  className={`message${item.user_id === jamBoxUserId ? " own-message" : ""}`}
                   key={item.id}
                 >
-                  <span
-                    className={`avatar small ${
-                      ["purple", "coral", "blue", "cream"][index % 4]
-                    }`}
-                  >
-                    {item.user.display_name.slice(0, 1).toUpperCase()}
-                  </span>
+                  {item.user.avatar_url ? (
+                    <img
+                      className="avatar small message-avatar"
+                      src={item.user.avatar_url}
+                      alt=""
+                    />
+                  ) : (
+                    <span
+                      className={`avatar small ${
+                        ["purple", "coral", "blue", "cream"][index % 4]
+                      }`}
+                    >
+                      {item.user.display_name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
 
                   <div>
                     <div className="message-meta">
-                      <strong>{item.user.display_name}</strong>
+                      <strong>
+                        {item.user_id === jamBoxUserId
+                          ? "Sen"
+                          : item.user.display_name}
+                      </strong>
                       <time dateTime={item.created_at}>
                         {formatMessageTime(item.created_at)}
                       </time>
