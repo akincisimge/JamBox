@@ -806,7 +806,7 @@ const openSpotifyPlaylist = async (
             </button>
           </aside>
 
-          <section className="player-panel panel">
+          <section className={`player-panel panel${playback?.is_playing ? " is-playing" : ""}`}>
             <div className="now-playing-label">
               <span className="equalizer">
                 <i />
@@ -818,6 +818,7 @@ const openSpotifyPlaylist = async (
 
             {playback?.album_image_url ? (
               <img
+                key={playback.spotify_track_id}
                 className="large-art"
                 src={playback.album_image_url}
                 alt={`${playback.title} albüm kapağı`}
