@@ -32,9 +32,14 @@ type Props = {
   onJoin: () => void;
   onAddTestOpponent: () => void;
   onMove: (from: string, to: string, promotion?: string) => void;
+  onRestart: () => void;
+  onResign: () => void;
+  onDraw: () => void;
 };
 
-export function ChessActivity({ game, currentUserId, busy, onCreate, onJoin, onAddTestOpponent, onMove }: Props) {
+export function ChessActivity({
+  game, currentUserId, busy, onCreate, onJoin, onAddTestOpponent, onMove, onRestart, onResign, onDraw,
+}: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const board = useMemo(() => boardFromFen(game?.fen), [game?.fen]);
   const legalMoves = game?.legal_moves ?? [];
@@ -46,6 +51,16 @@ export function ChessActivity({ game, currentUserId, busy, onCreate, onJoin, onA
     () => new Set(selected ? legalMoves.filter((move) => move.startsWith(selected)).map((move) => move.slice(2, 4)) : []),
     [legalMoves, selected],
   );
+  const drawOfferedByMe = game?.draw_offer_user_id === currentUserId;
+  const drawOfferedByOpponent = Boolean(game?.draw_offer_user_id && !drawOfferedByMe);
+  const moveRows = useMemo(() => {
+    const labels = game?.move_labels ?? [];
+    return Array.from({ length: Math.ceil(labels.length / 2) }, (_, index) => ({
+      number: index + 1,
+      white: labels[index * 2],
+      black: labels[index * 2 + 1],
+    }));
+  }, [game?.move_labels]);
 
   const chooseSquare = (index: number) => {
     if (!canMove || busy) return;
@@ -63,6 +78,12 @@ export function ChessActivity({ game, currentUserId, busy, onCreate, onJoin, onA
     setSelected(movableSquares.has(square) ? square : null);
   };
 
+  const resultText = game?.result === "resignation"
+    ? "Teslim ile tamamlandı"
+    : game?.result === "1/2-1/2"
+      ? "Berabere"
+      : game?.result ?? "Tamamlandı";
+
   return (
     <section className="chess-activity" aria-label="Satranç masası">
       <div className="chess-copy">
@@ -78,14 +99,39 @@ export function ChessActivity({ game, currentUserId, busy, onCreate, onJoin, onA
           </>
         )}
         {game?.status === "active" && <div className="chess-turn">{game.turn === "white" ? "Beyaz" : "Siyah"} hamlede {canMove && "· Sıra sende"}</div>}
-        {game?.status === "finished" && <div className="chess-turn">Sonuç: {game.result ?? "Tamamlandı"}</div>}
+        {game?.status === "finished" && <div className="chess-turn">{resultText}</div>}
         {game && (
           <div className="chess-players">
             <span><b>♔</b>{game.white_user.display_name}</span><em>VS</em>
             <span><b>♚</b>{game.black_user?.display_name ?? "Rakip bekleniyor"}</span>
           </div>
         )}
+        {game?.status === "active" && isPlayer && (
+          <div className="chess-actions">
+            <button className="chess-secondary" onClick={onDraw} disabled={busy}>
+              {drawOfferedByOpponent ? "Beraberliği kabul et" : drawOfferedByMe ? "Teklifi geri çek" : "Beraberlik teklif et"}
+            </button>
+            <button className="chess-danger" onClick={onResign} disabled={busy}>Teslim ol</button>
+          </div>
+        )}
+        {game?.status === "finished" && isPlayer && (
+          <button className="chess-primary chess-restart" onClick={onRestart} disabled={busy}>↻ Yeni oyun</button>
+        )}
+        {drawOfferedByOpponent && <small className="chess-notice">Rakibin beraberlik teklif etti.</small>}
+        {drawOfferedByMe && <small className="chess-notice">Beraberlik teklifin rakibe gönderildi.</small>}
         {canMove && <small className="chess-help">Bir taş seç; gidebileceği kareler parlayacak.</small>}
+        {game && (
+          <div className="chess-history">
+            <div className="chess-history-heading"><strong>Hamleler</strong><span>{game.move_labels?.length ?? 0}</span></div>
+            <div className="chess-history-list">
+              {moveRows.length === 0 ? <small>İlk hamle bekleniyor.</small> : moveRows.map((row) => (
+                <div className="chess-history-row" key={row.number}>
+                  <b>{row.number}.</b><span>{row.white}</span><span>{row.black ?? "—"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       {game && (
         <div className="chess-board" aria-label="Satranç tahtası">
