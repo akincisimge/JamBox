@@ -2350,7 +2350,7 @@ a { color: inherit; text-decoration: none; }
   box-shadow:0 0 0 5px color-mix(in srgb,var(--ambient-a) 18%,transparent),0 0 18px var(--ambient-a);
   pointer-events:none
 }
-.room-page .chess-board button.legal-target:not(:empty)>i{
+.room-page .chess-board button.legal-target.occupied>i{
   width:70%;background:transparent;box-shadow:inset 0 0 0 4px color-mix(in srgb,var(--ambient-a) 78%,#fff),0 0 18px var(--ambient-a)
 }
 .room-page .chess-help{display:block;margin-top:14px;color:var(--muted);font-size:10px}
