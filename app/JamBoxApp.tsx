@@ -440,7 +440,9 @@ const openSpotifyPlaylist = async (
       const room = await updateJamBoxPlayback(jamBoxUserId, activeRoom.code, {
         spotify_uri: track.uri,
         spotify_track_id: track.id,
-        queue_uris: playlistTracks.map((item) => item.uri),
+        queue_uris: playlistTracks.some((item) => item.uri === track.uri)
+          ? playlistTracks.map((item) => item.uri)
+          : [track.uri, ...playlistTracks.map((item) => item.uri)],
         title: track.name,
         artist: track.artists.map((artist) => artist.name).join(", "),
         album_image_url: track.album.images?.[0]?.url ?? null,
