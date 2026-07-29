@@ -31,29 +31,36 @@ type Props = {
   onCreate: () => void;
   onJoin: () => void;
   onAddTestOpponent: () => void;
-  onMove: (from: string, to: string) => void;
+  onMove: (from: string, to: string, promotion?: string) => void;
 };
 
 export function ChessActivity({ game, currentUserId, busy, onCreate, onJoin, onAddTestOpponent, onMove }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const board = useMemo(() => boardFromFen(game?.fen), [game?.fen]);
+  const legalMoves = game?.legal_moves ?? [];
   const isPlayer = game?.white_user_id === currentUserId || game?.black_user_id === currentUserId;
   const myColor = game?.white_user_id === currentUserId ? "white" : game?.black_user_id === currentUserId ? "black" : null;
   const canMove = game?.status === "active" && isPlayer && game.turn === myColor;
+  const movableSquares = useMemo(() => new Set(legalMoves.map((move) => move.slice(0, 2))), [legalMoves]);
+  const targetSquares = useMemo(
+    () => new Set(selected ? legalMoves.filter((move) => move.startsWith(selected)).map((move) => move.slice(2, 4)) : []),
+    [legalMoves, selected],
+  );
 
   const chooseSquare = (index: number) => {
-    if (!canMove) return;
+    if (!canMove || busy) return;
     const square = squareName(index);
-    if (!selected) {
-      if (board[index]) setSelected(square);
+    if (selected && targetSquares.has(square)) {
+      const legalMove = legalMoves.find((move) => move.startsWith(`${selected}${square}`));
+      onMove(selected, square, legalMove?.slice(4) || undefined);
+      setSelected(null);
       return;
     }
     if (selected === square) {
       setSelected(null);
       return;
     }
-    onMove(selected, square);
-    setSelected(null);
+    setSelected(movableSquares.has(square) ? square : null);
   };
 
   return (
@@ -67,35 +74,35 @@ export function ChessActivity({ game, currentUserId, busy, onCreate, onJoin, onA
         {game?.status === "waiting" && game.creator_id === currentUserId && (
           <>
             <div className="chess-waiting"><i /> Sohbetteki davetin kabul edilmesi bekleniyor</div>
-            <button className="chess-test-button" onClick={onAddTestOpponent} disabled={busy}>
-              ⚙ Test rakibi ekle
-            </button>
+            <button className="chess-test-button" onClick={onAddTestOpponent} disabled={busy}>⚙ Test rakibi ekle</button>
           </>
         )}
         {game?.status === "active" && <div className="chess-turn">{game.turn === "white" ? "Beyaz" : "Siyah"} hamlede {canMove && "· Sıra sende"}</div>}
         {game?.status === "finished" && <div className="chess-turn">Sonuç: {game.result ?? "Tamamlandı"}</div>}
         {game && (
           <div className="chess-players">
-            <span><b>♔</b>{game.white_user.display_name}</span>
-            <em>VS</em>
+            <span><b>♔</b>{game.white_user.display_name}</span><em>VS</em>
             <span><b>♚</b>{game.black_user?.display_name ?? "Rakip bekleniyor"}</span>
           </div>
         )}
+        {canMove && <small className="chess-help">Bir taş seç; gidebileceği kareler parlayacak.</small>}
       </div>
       {game && (
         <div className="chess-board" aria-label="Satranç tahtası">
           {board.map((piece, index) => {
             const square = squareName(index);
+            const isTarget = targetSquares.has(square);
             return (
               <button
                 type="button"
                 key={square}
-                className={`${(Math.floor(index / 8) + index) % 2 ? "dark" : "light"}${selected === square ? " selected" : ""}`}
+                className={`${(Math.floor(index / 8) + index) % 2 ? "dark" : "light"}${selected === square ? " selected" : ""}${isTarget ? " legal-target" : ""}${movableSquares.has(square) && canMove ? " movable" : ""}`}
                 onClick={() => chooseSquare(index)}
                 disabled={!canMove || busy}
                 aria-label={`${square}${piece ? ` ${pieces[piece]}` : ""}`}
               >
                 {pieces[piece] ?? ""}
+                {isTarget && <i />}
               </button>
             );
           })}
