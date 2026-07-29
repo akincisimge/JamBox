@@ -1185,3 +1185,17 @@ a { color: inherit; text-decoration: none; }
 @media(max-width:980px){
   .music-drawer-toggle{left:50%;width:96px;height:48px;font-size:36px}
 }
+
+
+/* MUSIC DRAWER V5 — KEEP HANDLE ON SCREEN */
+@media(min-width:981px){
+  .music-panel-collapsed .music-library-panel{
+    transform:translateX(calc(100% - 16px));
+  }
+  .music-panel-collapsed .music-drawer-toggle{
+    left:-58px;
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto;
+  }
+}
