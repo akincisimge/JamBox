@@ -155,6 +155,12 @@ const [playlistError, setPlaylistError] =
   const activeRoomCode = activeRoom?.code;
 
   useEffect(() => {
+    if (activeRoomCode) {
+      window.localStorage.setItem(ACTIVE_ROOM_STORAGE_KEY, activeRoomCode);
+    }
+  }, [activeRoomCode]);
+
+  useEffect(() => {
     if (view !== "room" || !activeRoomCode || !jamBoxUserId) {
       return;
     }
