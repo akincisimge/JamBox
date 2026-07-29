@@ -88,7 +88,7 @@ async function spotifyFetch<T>(path: string): Promise<T> {
 
 export async function getSpotifyPlaylists(): Promise<SpotifyPlaylist[]> {
   const data = await spotifyFetch<{ items?: SpotifyPlaylist[] }>(
-    "/me/playlists?limit=12",
+    "/me/playlists?limit=10",
   );
   return data.items ?? [];
 }
