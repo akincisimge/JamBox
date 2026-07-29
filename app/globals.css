@@ -1290,3 +1290,42 @@ a { color: inherit; text-decoration: none; }
     bottom:14px!important;
   }
 }
+
+
+/* SAFE DYNAMIC THEME — PHASE 1: AMBIENT BACKGROUND ONLY */
+.room-page{
+  --ambient-a:var(--album-primary,#ff5c8a);
+  --ambient-b:var(--album-secondary,#7c3aed);
+  --ambient-dark:var(--album-deep,#090b1d);
+  background-color:color-mix(in srgb,var(--ambient-dark) 88%,#050611);
+  transition:background-color 900ms ease;
+}
+.room-page::before{
+  inset:-10%;
+  opacity:.48;
+  background-image:
+    linear-gradient(125deg,rgba(5,6,17,.9),rgba(7,8,21,.7) 48%,rgba(5,6,17,.88)),
+    var(--room-album-art);
+  background-size:cover;
+  background-position:center;
+  filter:blur(72px) saturate(1.35);
+  transform:scale(1.12);
+  animation:safe-album-drift 18s ease-in-out infinite alternate;
+  transition:background-image 950ms ease,opacity 700ms ease;
+}
+.room-page::after{
+  opacity:1;
+  background:
+    radial-gradient(ellipse at 78% 16%,color-mix(in srgb,var(--ambient-a) 24%,transparent),transparent 38%),
+    radial-gradient(ellipse at 16% 76%,color-mix(in srgb,var(--ambient-b) 22%,transparent),transparent 42%),
+    radial-gradient(circle at 50% 110%,color-mix(in srgb,var(--ambient-a) 10%,transparent),transparent 48%),
+    linear-gradient(180deg,rgba(5,6,17,.2),color-mix(in srgb,var(--ambient-dark) 72%,#060713) 94%);
+  transition:background 950ms ease;
+}
+@keyframes safe-album-drift{
+  from{transform:scale(1.12) translate3d(-1%,0,0)}
+  to{transform:scale(1.16) translate3d(1%,1%,0)}
+}
+@media(prefers-reduced-motion:reduce){
+  .room-page::before{animation:none}
+}
