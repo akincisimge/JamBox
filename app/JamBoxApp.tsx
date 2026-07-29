@@ -860,6 +860,17 @@ const openSpotifyPlaylist = async (
               NOW PLAYING
             </div>
 
+            <div className={`playback-health ${roomAudioEnabled ? "is-ready" : "is-waiting"}`}>
+              <i />
+              <span>
+                {!playback
+                  ? "Şarkı bekleniyor"
+                  : roomAudioEnabled
+                    ? "Spotify bağlı"
+                    : "Sesi etkinleştir"}
+              </span>
+            </div>
+
             {playback?.album_image_url ? (
               <img
                 key={playback.spotify_track_id}
@@ -1136,8 +1147,25 @@ const openSpotifyPlaylist = async (
 
             {selectedPlaylist ? (
               <>
-                {playlistLoading && <p>Şarkılar yükleniyor...</p>}
+                {playlistLoading && (
+                  <div className="music-state-card is-loading">
+                    <span className="music-state-spinner" />
+                    <div>
+                      <strong>Şarkılar hazırlanıyor</strong>
+                      <small>Spotify listesini odaya getiriyoruz…</small>
+                    </div>
+                  </div>
+                )}
                 {playlistError && <p className="music-panel-error">{playlistError}</p>}
+                {!playlistLoading && !playlistError && playlistTracks.length === 0 && (
+                  <div className="music-state-card">
+                    <span className="music-state-icon">♫</span>
+                    <div>
+                      <strong>Bu liste şu an boş</strong>
+                      <small>Başka bir liste seçebilir veya aşağıdan şarkı arayabilirsin.</small>
+                    </div>
+                  </div>
+                )}
                 <div className="room-track-list">
                   {playlistTracks.map((track, index) => (
                     <button
