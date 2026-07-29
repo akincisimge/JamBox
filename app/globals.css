@@ -1004,3 +1004,103 @@ a { color: inherit; text-decoration: none; }
 .chat-panel{min-height:68vh;padding:18px}.chat-panel .messages{min-height:48vh}.player-panel{padding:20px 16px}.large-art{width:min(280px,78%)}.activities-panel{padding:18px}
 .activity-grid{grid-template-columns:repeat(2,minmax(0,1fr));overflow-x:auto}.activity-card{min-height:116px}.music-library-panel{padding:18px 14px}
 .room-track-row{grid-template-columns:28px 48px minmax(0,1fr) 20px;gap:10px}.music-panel-collapsed .music-library-panel{display:block}}
+
+
+/* MIDNIGHT GLASS V2 — DRAWER + REAL ALBUM PALETTE */
+.room-page{
+  --coral:var(--album-primary,#ff5c8a);
+  --purple:var(--album-secondary,#7c3aed);
+  background:var(--album-deep,#090b1d);
+  transition:background-color .65s ease,color .3s ease;
+}
+.room-page::before{
+  opacity:.58;
+  background-image:linear-gradient(120deg,var(--album-deep,#090b1d) 8%,rgba(7,8,21,.68) 48%,var(--album-deep,#090b1d) 100%),var(--room-album-art);
+}
+.room-page::after{
+  background:
+    radial-gradient(circle at 74% 15%,color-mix(in srgb,var(--album-primary,#ff5c8a) 38%,transparent),transparent 38%),
+    radial-gradient(circle at 12% 72%,color-mix(in srgb,var(--album-secondary,#7c3aed) 34%,transparent),transparent 42%),
+    linear-gradient(180deg,rgba(5,6,18,.28),var(--album-deep,#090b1d) 92%);
+}
+.room-page .panel{
+  border-color:color-mix(in srgb,var(--album-primary,#ff5c8a) 18%,rgba(255,255,255,.12));
+}
+.room-page .main-play,.room-page .message-form button,.room-page .host-note button{
+  background:linear-gradient(135deg,var(--album-primary,#ff5c8a),var(--album-secondary,#7c3aed));
+}
+.room-layout{
+  width:auto;
+  margin:34px calc(var(--music-panel-width,430px) + 54px) 70px 34px;
+  grid-template-columns:250px minmax(440px,1fr);
+  grid-template-areas:
+    "listeners chat"
+    "player chat"
+    "activities activities";
+  gap:18px;
+  transition:margin-right .28s ease;
+}
+.listeners-panel{position:static}
+.player-panel{position:static;padding:20px}
+.player-panel .large-art{width:min(220px,72%);margin:18px auto}
+.player-panel .track-copy h1{font-size:22px}
+.player-panel .track-copy p{margin-bottom:18px}
+.player-panel .player-controls{margin-top:18px}
+.chat-panel{min-height:calc(100vh - 174px);max-height:900px}
+.chat-panel .messages{min-height:0;overflow-y:auto}
+.activities-panel{padding:20px}
+.activity-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.activity-card{display:flex!important;align-items:flex-start;border-color:color-mix(in srgb,var(--album-secondary,#7c3aed) 24%,rgba(255,255,255,.1))}
+.activity-card b{color:var(--album-primary,#ff5c8a);font-size:10px;text-transform:uppercase;letter-spacing:.1em}
+.music-library-panel{
+  position:fixed;
+  z-index:14;
+  top:122px;
+  right:22px;
+  bottom:22px;
+  width:var(--music-panel-width,430px);
+  max-height:none;
+  display:flex;
+  flex-direction:column;
+  padding:20px;
+  overflow:hidden;
+  background:linear-gradient(155deg,color-mix(in srgb,var(--album-deep,#090b1d) 82%,#1c2243),color-mix(in srgb,var(--album-secondary,#7c3aed) 12%,#090b1d));
+  box-shadow:-24px 22px 70px rgba(0,0,0,.42),0 0 45px color-mix(in srgb,var(--album-primary,#ff5c8a) 15%,transparent);
+  transition:width .28s ease,transform .28s ease,background .65s ease;
+}
+.music-library-panel .queue-heading{flex:0 0 auto}
+.music-library-panel .room-track-list{flex:1;max-height:none;min-height:180px}
+.music-library-panel .spotify-room-search{flex:0 0 auto;max-height:42%;overflow-y:auto}
+.music-panel-collapsed .room-layout{grid-template-columns:250px minmax(440px,1fr);margin-right:112px}
+.music-panel-collapsed .music-library-panel{width:72px;padding:12px 8px}
+.music-panel-collapsed .music-library-panel .queue-heading{display:flex;height:100%;align-items:flex-start}
+.music-panel-collapsed .music-panel-actions{display:flex}
+.music-panel-collapsed .music-panel-actions>.panel-size-control:last-child{
+  display:flex;writing-mode:vertical-rl;min-width:50px;min-height:92px;letter-spacing:.08em
+}
+@media(max-width:980px){
+  .room-layout,.music-panel-collapsed .room-layout{
+    margin:22px 18px 80px;
+    grid-template-columns:210px minmax(0,1fr);
+    grid-template-areas:"listeners player" "chat chat" "activities activities";
+  }
+  .music-library-panel{
+    top:auto;left:12px;right:12px;bottom:12px;width:auto;height:min(72vh,680px);
+    transform:translateY(0);
+  }
+  .music-panel-collapsed .music-library-panel{
+    left:auto;width:74px;height:72px;padding:8px;
+  }
+  .chat-panel{min-height:620px}
+}
+@media(max-width:680px){
+  .room-layout,.music-panel-collapsed .room-layout{
+    margin:14px 12px 90px;
+    grid-template-columns:1fr;
+    grid-template-areas:"chat" "player" "activities";
+  }
+  .chat-panel{min-height:68vh;max-height:none}
+  .activity-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory}
+  .activity-card{min-width:180px;scroll-snap-align:start}
+  .music-library-panel{height:76vh;border-radius:24px}
+}
