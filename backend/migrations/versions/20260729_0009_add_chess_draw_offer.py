@@ -17,7 +17,9 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column("chess_games", sa.Column("draw_offer_user_id", postgresql.UUID(as_uuid=True), nullable=True))
+    op.add_column(
+        "chess_games", sa.Column("draw_offer_user_id", postgresql.UUID(as_uuid=True), nullable=True)
+    )
     op.create_foreign_key(
         "fk_chess_games_draw_offer_user_id_users",
         "chess_games",

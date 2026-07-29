@@ -87,7 +87,13 @@ async def leave_room(session: AsyncSession, room: Room, user: User) -> None:
     await session.commit()
 
 
-async def update_music_permission(session: AsyncSession, room: Room, actor: User, member_user_id: uuid.UUID, can_control_music: bool) -> Room:
+async def update_music_permission(
+    session: AsyncSession,
+    room: Room,
+    actor: User,
+    member_user_id: uuid.UUID,
+    can_control_music: bool,
+) -> Room:
     if room.owner_id != actor.id:
         raise ForbiddenError("Müzik yetkisini yalnızca oda sahibi değiştirebilir.")
     if member_user_id == room.owner_id and not can_control_music:
@@ -100,17 +106,24 @@ async def update_music_permission(session: AsyncSession, room: Room, actor: User
     return await get_room(session, room.code)
 
 
-async def update_playback(session: AsyncSession, room: Room, actor: User, payload: PlaybackUpdate) -> Room:
+async def update_playback(
+    session: AsyncSession, room: Room, actor: User, payload: PlaybackUpdate
+) -> Room:
     membership = await _require_member(session, room, actor)
     if not membership.can_control_music:
         raise ForbiddenError("Bu kullanıcının müzik kontrol yetkisi yok.")
     position_ms = min(payload.position_ms, payload.duration_ms)
     playback = await session.get(RoomPlayback, room.id)
     values = dict(
-        spotify_uri=payload.spotify_uri, spotify_track_id=payload.spotify_track_id,
-        queue_uris=payload.queue_uris, title=payload.title, artist=payload.artist,
-        album_image_url=payload.album_image_url, duration_ms=payload.duration_ms,
-        position_ms=position_ms, is_playing=payload.is_playing,
+        spotify_uri=payload.spotify_uri,
+        spotify_track_id=payload.spotify_track_id,
+        queue_uris=payload.queue_uris,
+        title=payload.title,
+        artist=payload.artist,
+        album_image_url=payload.album_image_url,
+        duration_ms=payload.duration_ms,
+        position_ms=position_ms,
+        is_playing=payload.is_playing,
     )
     if playback is None:
         playback = RoomPlayback(room_id=room.id, version=1, changed_at=datetime.now(UTC), **values)
@@ -134,9 +147,15 @@ async def create_message(session: AsyncSession, room: Room, actor: User, text: s
     return message
 
 
-async def toggle_message_reaction(session: AsyncSession, room: Room, actor: User, message_id: uuid.UUID, emoji: str) -> RoomMessage:
+async def toggle_message_reaction(
+    session: AsyncSession, room: Room, actor: User, message_id: uuid.UUID, emoji: str
+) -> RoomMessage:
     await _require_member(session, room, actor)
-    message = await session.scalar(select(RoomMessage).where(RoomMessage.id == message_id, RoomMessage.room_id == room.id).options(selectinload(RoomMessage.user)))
+    message = await session.scalar(
+        select(RoomMessage)
+        .where(RoomMessage.id == message_id, RoomMessage.room_id == room.id)
+        .options(selectinload(RoomMessage.user))
+    )
     if message is None:
         raise NotFoundError("Mesaj bulunamadı.")
     reactions = {key: list(value) for key, value in (message.reactions or {}).items()}
@@ -153,7 +172,9 @@ async def toggle_message_reaction(session: AsyncSession, room: Room, actor: User
     return message
 
 
-async def create_chess_game(session: AsyncSession, room: Room, actor: User) -> tuple[Room, RoomMessage]:
+async def create_chess_game(
+    session: AsyncSession, room: Room, actor: User
+) -> tuple[Room, RoomMessage]:
     await _require_member(session, room, actor)
     existing = await session.scalar(select(ChessGame).where(ChessGame.room_id == room.id))
     if existing is not None and existing.status in {"waiting", "active"}:
@@ -162,15 +183,22 @@ async def create_chess_game(session: AsyncSession, room: Room, actor: User) -> t
         await session.delete(existing)
         await session.flush()
     game = ChessGame(
-        room_id=room.id, creator_id=actor.id, white_user_id=actor.id,
-        status="waiting", fen=chess.STARTING_FEN, turn="white", move_history=[],
+        room_id=room.id,
+        creator_id=actor.id,
+        white_user_id=actor.id,
+        status="waiting",
+        fen=chess.STARTING_FEN,
+        turn="white",
+        move_history=[],
     )
     session.add(game)
     await session.flush()
     message = RoomMessage(
-        room_id=room.id, user_id=actor.id,
+        room_id=room.id,
+        user_id=actor.id,
         text=f"♟️ {actor.display_name} satranç masası açtı.",
-        message_type="chess_invite", payload={"game_id": str(game.id)},
+        message_type="chess_invite",
+        payload={"game_id": str(game.id)},
     )
     message.user = actor
     session.add(message)
@@ -239,11 +267,17 @@ async def restart_chess_game(session: AsyncSession, room: Room, actor: User) -> 
 async def resign_chess_game(session: AsyncSession, room: Room, actor: User) -> Room:
     await _require_member(session, room, actor)
     game = await session.scalar(select(ChessGame).where(ChessGame.room_id == room.id))
-    if game is None or game.status != "active" or actor.id not in {game.white_user_id, game.black_user_id}:
+    if (
+        game is None
+        or game.status != "active"
+        or actor.id not in {game.white_user_id, game.black_user_id}
+    ):
         raise ConflictError("Teslim olabileceğiniz aktif bir oyun yok.")
     game.status = "finished"
     game.result = "resignation"
-    game.winner_user_id = game.black_user_id if actor.id == game.white_user_id else game.white_user_id
+    game.winner_user_id = (
+        game.black_user_id if actor.id == game.white_user_id else game.white_user_id
+    )
     game.draw_offer_user_id = None
     await session.commit()
     return await get_room(session, room.code)
@@ -252,7 +286,11 @@ async def resign_chess_game(session: AsyncSession, room: Room, actor: User) -> R
 async def offer_or_accept_chess_draw(session: AsyncSession, room: Room, actor: User) -> Room:
     await _require_member(session, room, actor)
     game = await session.scalar(select(ChessGame).where(ChessGame.room_id == room.id))
-    if game is None or game.status != "active" or actor.id not in {game.white_user_id, game.black_user_id}:
+    if (
+        game is None
+        or game.status != "active"
+        or actor.id not in {game.white_user_id, game.black_user_id}
+    ):
         raise ConflictError("Beraberlik teklif edebileceğiniz aktif bir oyun yok.")
     if game.draw_offer_user_id is None:
         game.draw_offer_user_id = actor.id
@@ -273,12 +311,20 @@ async def offer_or_accept_chess_draw(session: AsyncSession, room: Room, actor: U
     return await get_room(session, room.code)
 
 
-async def make_chess_move(session: AsyncSession, room: Room, actor: User, payload: ChessMoveCreate) -> Room:
+async def make_chess_move(
+    session: AsyncSession, room: Room, actor: User, payload: ChessMoveCreate
+) -> Room:
     await _require_member(session, room, actor)
     game = await session.scalar(select(ChessGame).where(ChessGame.room_id == room.id))
     if game is None or game.status != "active":
         raise ConflictError("Aktif satranç oyunu bulunamadı.")
-    actor_color = chess.WHITE if game.white_user_id == actor.id else chess.BLACK if game.black_user_id == actor.id else None
+    actor_color = (
+        chess.WHITE
+        if game.white_user_id == actor.id
+        else chess.BLACK
+        if game.black_user_id == actor.id
+        else None
+    )
     if actor_color is None:
         raise ForbiddenError("Bu satranç masasındaki oyunculardan biri değilsiniz.")
     board = chess.Board(game.fen)
@@ -292,9 +338,7 @@ async def make_chess_move(session: AsyncSession, room: Room, actor: User, payloa
     history = [*(game.move_history or []), move.uci()]
 
     test_opponent = (
-        await session.get(User, game.black_user_id)
-        if game.black_user_id is not None
-        else None
+        await session.get(User, game.black_user_id) if game.black_user_id is not None else None
     )
     if (
         not board.is_game_over()

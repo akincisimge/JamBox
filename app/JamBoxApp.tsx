@@ -207,8 +207,12 @@ const [searchLoading, setSearchLoading] = useState(false);
     if (!savedPlaylist) return;
 
     let cancelled = false;
-    setPlaylistLoading(true);
-    setPlaylistError("");
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setPlaylistLoading(true);
+        setPlaylistError("");
+      }
+    });
 
     void getSpotifyPlaylistTracks(savedPlaylist.id)
       .then((tracks) => {
@@ -321,8 +325,14 @@ const [searchLoading, setSearchLoading] = useState(false);
   useEffect(() => {
     const artwork = activeRoom?.playback?.album_image_url;
     if (!artwork) {
-      setThemeColors({ primary: "#ff5c8a", secondary: "#7c3aed", deep: "#090b1d" });
-      return;
+      const resetTimer = window.setTimeout(() => {
+        setThemeColors({
+          primary: "#ff5c8a",
+          secondary: "#7c3aed",
+          deep: "#090b1d",
+        });
+      }, 0);
+      return () => window.clearTimeout(resetTimer);
     }
 
     const image = new Image();
