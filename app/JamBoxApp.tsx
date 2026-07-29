@@ -549,7 +549,7 @@ const openSpotifyPlaylist = async (
     if (!activeRoom || !jamBoxUserId) return;
     setChessBusy(true);
     try {
-      setActiveRoom(await makeJamBoxChessMove(jamBoxUserId, activeRoom.code, from, to, "q"));
+      setActiveRoom(await makeJamBoxChessMove(jamBoxUserId, activeRoom.code, from, to));
     } catch (error) {
       setToast(error instanceof JamBoxApiError ? error.message : "Hamle yapılamadı.");
     } finally {
