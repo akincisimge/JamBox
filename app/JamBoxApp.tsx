@@ -22,6 +22,7 @@ import {
   getSpotifyPlaylists,
   getSpotifyPlaylistTracks,
   readStoredSpotifyProfile,
+  searchSpotifyTracks,
   startSpotifyLogin,
 } from "../lib/spotify/client";
 import {
@@ -59,6 +60,9 @@ const [playlistLoading, setPlaylistLoading] =
 
 const [playlistError, setPlaylistError] =
   useState("");
+const [trackSearch, setTrackSearch] = useState("");
+const [searchResults, setSearchResults] = useState<SpotifyTrack[]>([]);
+const [searchLoading, setSearchLoading] = useState(false);
 
   const [view, setView] = useState<"home" | "room">("home");
   const [modal, setModal] =
@@ -76,7 +80,7 @@ const [playlistError, setPlaylistError] =
   const spotifyPlayerRef = useRef<SpotifyPlayer | null>(null);
   const [playbackClock, setPlaybackClock] = useState(0);
   const [demoIsPlaying, setDemoIsPlaying] = useState(true);
-  const [queue, setQueue] = useState(initialQueue);
+  const [queue] = useState(initialQueue);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState("");
   const [toast, setToast] = useState("");
@@ -301,11 +305,6 @@ const openSpotifyPlaylist = async (
     setView("home");
   };
 
-  const sortedQueue = useMemo(
-    () => [...queue].sort((a, b) => b.votes - a.votes),
-    [queue]
-  );
-
   function openRoom(kind: "create" | "join") {
     setRoomError("");
     setModal(kind);
@@ -400,8 +399,6 @@ const openSpotifyPlaylist = async (
       });
       setActiveRoom(room);
       setSongPickerOpen(false);
-      setSelectedPlaylist(null);
-      setPlaylistTracks([]);
     } catch (error) {
       setToast(
         error instanceof JamBoxApiError
@@ -508,14 +505,37 @@ const openSpotifyPlaylist = async (
     [playback, playbackClock],
   );
 
-  function vote(id: number) {
-    setQueue((items) =>
-      items.map((item) =>
-        item.id === id
-          ? { ...item, votes: item.votes + 1 }
-          : item
-      )
-    );
+  async function playRandomTrack() {
+    if (!canControlMusic) {
+      setToast("Bu odada müzik kontrol yetkin yok.");
+      return;
+    }
+    if (playlistTracks.length === 0) {
+      setToast("Önce bir Spotify çalma listesi seç.");
+      return;
+    }
+
+    const randomTrack =
+      playlistTracks[Math.floor(Math.random() * playlistTracks.length)];
+    await playTrackTogether(randomTrack);
+  }
+
+  async function searchTracks(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!trackSearch.trim()) return;
+
+    setSearchLoading(true);
+    try {
+      setSearchResults(await searchSpotifyTracks(trackSearch));
+    } catch (error) {
+      setToast(
+        error instanceof Error
+          ? error.message
+          : "Spotify araması yapılamadı.",
+      );
+    } finally {
+      setSearchLoading(false);
+    }
   }
 
   async function sendMessage(
@@ -754,55 +774,125 @@ const openSpotifyPlaylist = async (
             </form>
           </aside>
 
-          <section className="queue-panel panel">
+          <section className="queue-panel panel music-library-panel">
             <div className="section-heading queue-heading">
               <div>
-                <h2>Up next</h2>
+                <span className="music-panel-eyebrow">ROOM MUSIC</span>
+                <h2>{selectedPlaylist?.name ?? "Bir çalma listesi seç"}</h2>
                 <p>
-                  Vote to shape what plays next
+                  {selectedPlaylist
+                    ? `${playlistTracks.length} gerçek Spotify şarkısı`
+                    : "Oda için kullanılacak Spotify listesini belirle."}
                 </p>
               </div>
 
-              <button onClick={() => setSongPickerOpen(true)}>
-                <Icon name="plus" size={18} />
-                Add a song
-              </button>
+              <div className="music-panel-actions">
+                {selectedPlaylist && (
+                  <button
+                    onClick={playRandomTrack}
+                    disabled={!canControlMusic || playlistTracks.length === 0}
+                  >
+                    Karışık çal
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setSelectedPlaylist(null);
+                    setPlaylistTracks([]);
+                    setSongPickerOpen(true);
+                  }}
+                >
+                  <Icon name="plus" size={18} />
+                  {selectedPlaylist ? "Başka liste seç" : "Liste seç"}
+                </button>
+              </div>
             </div>
 
-            <div className="queue-list">
-              {sortedQueue.map((track, index) => (
-                <article
-                  className="queue-item"
-                  key={track.id}
-                >
-                  <span className="queue-index">
-                    0{index + 1}
-                  </span>
+            {selectedPlaylist ? (
+              <>
+                {playlistLoading && <p>Şarkılar yükleniyor...</p>}
+                {playlistError && <p className="music-panel-error">{playlistError}</p>}
+                <div className="room-track-list">
+                  {playlistTracks.map((track, index) => (
+                    <button
+                      className="room-track-row"
+                      key={track.id}
+                      onClick={() => playTrackTogether(track)}
+                      disabled={!canControlMusic}
+                      title={
+                        canControlMusic
+                          ? "Bu şarkıyı odada çal"
+                          : "Müzik kontrol yetkin yok"
+                      }
+                    >
+                      <span className="queue-index">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      {track.album.images?.[0]?.url ? (
+                        <img src={track.album.images[0].url} alt="" />
+                      ) : (
+                        <span className="track-image-placeholder" />
+                      )}
+                      <span className="room-track-copy">
+                        <strong>{track.name}</strong>
+                        <small>
+                          {track.artists.map((artist) => artist.name).join(", ")}
+                        </small>
+                      </span>
+                      <Icon name="play" size={18} />
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <button
+                className="empty-music-library"
+                onClick={() => setSongPickerOpen(true)}
+              >
+                <Icon name="plus" size={22} />
+                Spotify çalma listesi seç
+              </button>
+            )}
 
-                  <span
-                    className={`mini-art ${track.art}`}
-                  />
+            <div className="spotify-room-search">
+              <div>
+                <h3>Listede olmayan bir şarkıyı ara</h3>
+                <p>Spotify kataloğunda sanatçı veya şarkı adıyla arama yap.</p>
+              </div>
+              <form onSubmit={searchTracks}>
+                <input
+                  value={trackSearch}
+                  onChange={(event) => setTrackSearch(event.target.value)}
+                  placeholder="Şarkı veya sanatçı ara"
+                  aria-label="Spotify şarkısı ara"
+                />
+                <button disabled={searchLoading || !trackSearch.trim()}>
+                  {searchLoading ? "Aranıyor…" : "Ara"}
+                </button>
+              </form>
 
-                  <div className="queue-track">
-                    <strong>{track.title}</strong>
-                    <small>{track.artist}</small>
-                  </div>
-
-                  <span className="added-by">
-                    Added by{" "}
-                    <strong>{track.addedBy}</strong>
-                  </span>
-
-                  <button
-                    className="vote-button"
-                    onClick={() => vote(track.id)}
-                    aria-label={`Vote for ${track.title}`}
-                  >
-                    ▲{" "}
-                    <strong>{track.votes}</strong>
-                  </button>
-                </article>
-              ))}
+              {searchResults.length > 0 && (
+                <div className="search-track-results">
+                  {searchResults.map((track) => (
+                    <button
+                      key={track.id}
+                      onClick={() => playTrackTogether(track)}
+                      disabled={!canControlMusic}
+                    >
+                      {track.album.images?.[0]?.url && (
+                        <img src={track.album.images[0].url} alt="" />
+                      )}
+                      <span>
+                        <strong>{track.name}</strong>
+                        <small>
+                          {track.artists.map((artist) => artist.name).join(", ")}
+                        </small>
+                      </span>
+                      <Icon name="play" size={17} />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         </section>
