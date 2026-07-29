@@ -22,6 +22,7 @@ import {
   leaveJamBoxRoom,
   registerJamBoxUser,
   sendJamBoxMessage,
+  toggleJamBoxMessageReaction,
   updateJamBoxPlayback,
 } from "../lib/jambox/client";
 import {
@@ -246,6 +247,13 @@ const [searchLoading, setSearchLoading] = useState(false);
           items.some((item) => item.id === newMessage.id)
             ? items
             : [...items, newMessage],
+        );
+      },
+      onMessageUpdated: (updatedMessage) => {
+        setMessages((items) =>
+          items.map((item) =>
+            item.id === updatedMessage.id ? updatedMessage : item,
+          ),
         );
       },
       onRoomClosed: () => {
@@ -697,6 +705,26 @@ const openSpotifyPlaylist = async (
     }
   }
 
+  async function toggleMessageReaction(messageId: string, emoji: string) {
+    try {
+      const updated = await toggleJamBoxMessageReaction(
+        jamBoxUserId,
+        roomCode,
+        messageId,
+        emoji,
+      );
+      setMessages((items) =>
+        items.map((item) => (item.id === updated.id ? updated : item)),
+      );
+    } catch (error) {
+      setToast(
+        error instanceof JamBoxApiError
+          ? error.message
+          : "Mesaj reaksiyonu güncellenemedi.",
+      );
+    }
+  }
+
   async function sendMessage(
     event: FormEvent<HTMLFormElement>
   ) {
@@ -951,6 +979,36 @@ const openSpotifyPlaylist = async (
                       </time>
                     </div>
                     <p>{item.text}</p>
+                    <div className="message-reactions">
+                      {Object.entries(item.reactions ?? {}).map(
+                        ([emoji, userIds]) => (
+                          <button
+                            type="button"
+                            key={emoji}
+                            className={
+                              userIds.includes(jamBoxUserId) ? "is-active" : ""
+                            }
+                            onClick={() => toggleMessageReaction(item.id, emoji)}
+                            aria-label={`${emoji} reaksiyonunu değiştir`}
+                          >
+                            <span>{emoji}</span>
+                            <b>{userIds.length}</b>
+                          </button>
+                        ),
+                      )}
+                      <div className="reaction-add">
+                        {["❤️", "🔥", "😂", "👏"].map((emoji) => (
+                          <button
+                            type="button"
+                            key={emoji}
+                            onClick={() => toggleMessageReaction(item.id, emoji)}
+                            aria-label={`${emoji} reaksiyonu ekle`}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
