@@ -1986,3 +1986,264 @@ a { color: inherit; text-decoration: none; }
   .room-page .chat-panel{grid-area:chat}
   .room-page .activities-panel{grid-area:activities}
 }
+
+
+/* FINAL UI POLISH */
+.room-page .room-layout{row-gap:24px}
+.room-page .room-left-column{gap:20px}
+.room-page .listeners-panel{padding:22px}
+.room-page .listeners-panel .section-heading{
+  padding-bottom:14px;
+  margin-bottom:8px;
+  border-bottom:1px solid color-mix(in srgb,var(--ambient-a) 12%,rgba(255,255,255,.07));
+}
+.room-page .listener{
+  position:relative;
+  margin:2px 0;
+  padding:10px 9px;
+  border-radius:14px;
+  transition:background 180ms ease,transform 180ms ease;
+}
+.room-page .listener:hover{
+  transform:translateX(2px);
+  background:color-mix(in srgb,var(--ambient-a) 9%,rgba(255,255,255,.025));
+}
+.room-page .listener .online-dot{
+  box-shadow:0 0 0 4px rgba(65,217,145,.08),0 0 12px rgba(65,217,145,.55);
+}
+.room-page .invite-button{
+  min-height:45px;
+  margin-top:12px;
+  border-radius:14px;
+  background:linear-gradient(135deg,
+    color-mix(in srgb,var(--ambient-a) 8%,transparent),
+    color-mix(in srgb,var(--ambient-b) 5%,transparent));
+  transition:transform 180ms ease,border-color 180ms ease,background 900ms ease;
+}
+.room-page .invite-button:hover{transform:translateY(-2px)}
+
+.room-page .player-panel{padding:26px 22px}
+.room-page .playback-health{
+  width:max-content;
+  max-width:100%;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  margin:13px auto 0;
+  padding:6px 10px;
+  color:var(--muted);
+  background:rgba(6,8,22,.34);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:999px;
+  font-size:9px;
+  font-weight:750;
+  letter-spacing:.04em;
+}
+.room-page .playback-health i{
+  width:6px;
+  height:6px;
+  flex:0 0 auto;
+  border-radius:50%;
+  background:#f4b44b;
+  box-shadow:0 0 9px rgba(244,180,75,.65);
+}
+.room-page .playback-health.is-ready{
+  color:color-mix(in srgb,#52df9b 76%,#fff);
+  border-color:rgba(82,223,155,.2);
+}
+.room-page .playback-health.is-ready i{
+  background:#52df9b;
+  box-shadow:0 0 10px rgba(82,223,155,.7);
+}
+.room-page .player-panel .large-art{margin-top:20px}
+.room-page .player-controls button:not(.main-play){
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:50%;
+  color:var(--muted);
+  background:rgba(255,255,255,.025);
+  font-size:25px;
+  transition:color 180ms ease,background 180ms ease,transform 180ms ease;
+}
+.room-page .player-controls button:not(.main-play):not(:disabled):hover{
+  color:#fff;
+  background:color-mix(in srgb,var(--ambient-a) 14%,rgba(255,255,255,.04));
+  transform:translateY(-2px);
+}
+.room-page .player-controls button:disabled{opacity:.35;cursor:not-allowed}
+
+.room-page .chat-panel{
+  min-width:0;
+  padding:25px;
+  border-radius:26px;
+}
+.room-page .chat-panel .messages{
+  min-height:390px;
+  max-height:min(55vh,620px);
+  padding:4px 5px 14px;
+  scroll-behavior:smooth;
+}
+.room-page .chat-panel .section-heading{
+  padding-bottom:15px;
+  border-bottom:1px solid color-mix(in srgb,var(--ambient-a) 12%,rgba(255,255,255,.06));
+}
+.room-page .chat-panel .message-form{min-height:48px;border-radius:15px}
+.room-page .chat-panel .message-form input{padding-inline:15px}
+
+.room-page .activities-panel{
+  position:relative;
+  z-index:1;
+  overflow:hidden;
+  padding:24px 26px 26px;
+  border-radius:26px;
+}
+.room-page .activities-panel::before{
+  content:"";
+  position:absolute;
+  inset:auto -90px -110px auto;
+  width:280px;
+  height:280px;
+  pointer-events:none;
+  border-radius:50%;
+  background:radial-gradient(circle,color-mix(in srgb,var(--ambient-b) 14%,transparent),transparent 68%);
+}
+.room-page .activities-panel .section-heading{margin-bottom:18px}
+.room-page .activities-panel .section-heading h2{margin-top:5px;font-size:22px}
+.room-page .activity-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+}
+.room-page .activity-card{
+  position:relative;
+  min-width:0;
+  min-height:158px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:flex-end;
+  gap:7px;
+  overflow:hidden;
+  padding:18px;
+  text-align:left;
+  border:1px solid color-mix(in srgb,var(--ambient-a) 17%,rgba(255,255,255,.08));
+  border-radius:19px;
+  opacity:1;
+  cursor:default;
+  isolation:isolate;
+}
+.room-page .activity-card::before{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  width:120px;
+  height:120px;
+  right:-35px;
+  top:-42px;
+  border-radius:50%;
+  background:radial-gradient(circle,color-mix(in srgb,var(--ambient-a) 22%,transparent),transparent 70%);
+}
+.room-page .activity-card:nth-child(even)::before{
+  background:radial-gradient(circle,color-mix(in srgb,var(--ambient-b) 22%,transparent),transparent 70%);
+}
+.room-page .activity-icon{
+  position:absolute;
+  left:18px;
+  top:18px;
+  color:color-mix(in srgb,var(--ambient-a) 76%,#fff);
+  font-size:23px;
+  letter-spacing:.08em;
+}
+.room-page .activity-card strong{font-size:14px}
+.room-page .activity-card small{
+  overflow:hidden;
+  color:var(--muted);
+  font-size:10px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.room-page .activity-card b{
+  margin-top:3px;
+  color:color-mix(in srgb,var(--ambient-a) 64%,#fff);
+  font-size:8px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+
+.room-page .music-library-panel{border-radius:28px}
+.room-page .music-panel-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:9px}
+.room-page .music-state-card{
+  display:flex;
+  align-items:center;
+  gap:13px;
+  margin:10px 0 16px;
+  padding:14px 15px;
+  color:var(--text);
+  background:color-mix(in srgb,var(--ambient-a) 7%,rgba(255,255,255,.025));
+  border:1px solid color-mix(in srgb,var(--ambient-a) 18%,rgba(255,255,255,.07));
+  border-radius:16px;
+}
+.room-page .music-state-card>div{display:grid;gap:3px}
+.room-page .music-state-card strong{font-size:12px}
+.room-page .music-state-card small{color:var(--muted);font-size:10px}
+.room-page .music-state-icon{
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+  color:#fff;
+  background:linear-gradient(135deg,var(--ambient-a),var(--ambient-b));
+  border-radius:12px;
+}
+.room-page .music-state-spinner{
+  width:30px;
+  height:30px;
+  flex:0 0 auto;
+  border:3px solid color-mix(in srgb,var(--ambient-a) 18%,transparent);
+  border-top-color:var(--ambient-a);
+  border-radius:50%;
+  animation:music-state-spin .8s linear infinite;
+}
+@keyframes music-state-spin{to{transform:rotate(360deg)}}
+.room-page .music-panel-error{
+  margin:10px 0 16px;
+  padding:12px 14px;
+  color:#ffc2cc;
+  background:rgba(255,92,122,.08);
+  border:1px solid rgba(255,92,122,.2);
+  border-radius:14px;
+  font-size:11px;
+}
+.room-page .room-track-row{border-radius:14px}
+.room-page .spotify-room-search{margin-top:20px}
+.room-page .spotify-room-search form{border-radius:15px}
+
+@media(max-width:1120px) and (min-width:681px){
+  .room-page .activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .room-page .activity-card{min-height:135px}
+}
+@media(max-width:680px){
+  .room-page .chat-panel{padding:18px}
+  .room-page .chat-panel .messages{min-height:340px;max-height:52vh}
+  .room-page .activities-panel{padding:20px 16px}
+  .room-page .activity-grid{
+    display:flex;
+    gap:10px;
+    overflow-x:auto;
+    scroll-snap-type:x mandatory;
+    padding-bottom:5px;
+  }
+  .room-page .activity-card{
+    min-width:190px;
+    min-height:138px;
+    scroll-snap-align:start;
+  }
+  .room-page .music-panel-actions{justify-content:flex-start}
+}
+@media(prefers-reduced-motion:reduce){
+  .room-page .music-state-spinner{animation:none}
+}
