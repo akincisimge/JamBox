@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Icon } from "../components/ui/Icon";
 import { Logo } from "../components/ui/Logo";
 import { RoomModal } from "../components/room/RoomModal";
@@ -86,6 +93,8 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState("");
   const [toast, setToast] = useState("");
+  const [musicPanelWidth, setMusicPanelWidth] = useState(430);
+  const [musicPanelCollapsed, setMusicPanelCollapsed] = useState(false);
 
   useEffect(() => {
     const savedProfile = readStoredSpotifyProfile();
@@ -628,7 +637,19 @@ const openSpotifyPlaylist = async (
 
   if (view === "room") {
     return (
-      <main className="site-shell room-page">
+      <main
+        className={`site-shell room-page${
+          musicPanelCollapsed ? " music-panel-collapsed" : ""
+        }`}
+        style={
+          {
+            "--room-album-art": playback?.album_image_url
+              ? `url("${playback.album_image_url}")`
+              : "none",
+            "--music-panel-width": `${musicPanelWidth}px`,
+          } as CSSProperties
+        }
+      >
         <header className="topbar room-topbar">
           <Logo />
 
@@ -827,6 +848,42 @@ const openSpotifyPlaylist = async (
             </form>
           </aside>
 
+          <section className="activities-panel panel" aria-labelledby="activities-title">
+            <div className="section-heading">
+              <div>
+                <span className="music-panel-eyebrow">PLAY TOGETHER</span>
+                <h2 id="activities-title">Activities</h2>
+              </div>
+              <span>More coming soon</span>
+            </div>
+            <div className="activity-grid">
+              <button>
+                <span className="activity-icon">× ○</span>
+                <strong>Tic-Tac-Toe</strong>
+                <small>Classic 3×3 game</small>
+                <b>Coming soon</b>
+              </button>
+              <button>
+                <span className="activity-icon">● ●</span>
+                <strong>Connect Four</strong>
+                <small>Four in a row</small>
+                <b>Coming soon</b>
+              </button>
+              <button>
+                <span className="activity-icon">▥</span>
+                <strong>Polls</strong>
+                <small>Ask, vote, decide</small>
+                <b>Coming soon</b>
+              </button>
+              <button>
+                <span className="activity-icon">＋</span>
+                <strong>More activities</strong>
+                <small>Built for the whole room</small>
+                <b>Coming soon</b>
+              </button>
+            </div>
+          </section>
+
           <section className="queue-panel panel music-library-panel">
             <div className="section-heading queue-heading">
               <div>
@@ -840,6 +897,27 @@ const openSpotifyPlaylist = async (
               </div>
 
               <div className="music-panel-actions">
+                <button
+                  className="panel-size-control"
+                  onClick={() => setMusicPanelWidth((width) => Math.max(340, width - 60))}
+                  aria-label="Müzik panelini küçült"
+                >
+                  −
+                </button>
+                <button
+                  className="panel-size-control"
+                  onClick={() => setMusicPanelWidth((width) => Math.min(620, width + 60))}
+                  aria-label="Müzik panelini büyüt"
+                >
+                  +
+                </button>
+                <button
+                  className="panel-size-control"
+                  onClick={() => setMusicPanelCollapsed((collapsed) => !collapsed)}
+                  aria-label={musicPanelCollapsed ? "Müzik panelini aç" : "Müzik panelini daralt"}
+                >
+                  {musicPanelCollapsed ? "Aç" : "Daralt"}
+                </button>
                 {selectedPlaylist && (
                   <button
                     onClick={playRandomTrack}
