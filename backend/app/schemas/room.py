@@ -73,6 +73,8 @@ class ChessGameResponse(BaseModel):
     turn: str
     move_history: list[str] = Field(default_factory=list)
     legal_moves: list[str] = Field(default_factory=list)
+    move_labels: list[str] = Field(default_factory=list)
+    draw_offer_user_id: uuid.UUID | None
     winner_user_id: uuid.UUID | None
     result: str | None
     created_at: datetime
