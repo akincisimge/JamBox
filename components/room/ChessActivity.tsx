@@ -96,7 +96,7 @@ export function ChessActivity({ game, currentUserId, busy, onCreate, onJoin, onA
               <button
                 type="button"
                 key={square}
-                className={`${(Math.floor(index / 8) + index) % 2 ? "dark" : "light"}${selected === square ? " selected" : ""}${isTarget ? " legal-target" : ""}${movableSquares.has(square) && canMove ? " movable" : ""}`}
+                className={`${(Math.floor(index / 8) + index) % 2 ? "dark" : "light"}${selected === square ? " selected" : ""}${isTarget ? " legal-target" : ""}${movableSquares.has(square) && canMove ? " movable" : ""}${piece ? " occupied" : ""}`}
                 onClick={() => chooseSquare(index)}
                 disabled={!canMove || busy}
                 aria-label={`${square}${piece ? ` ${pieces[piece]}` : ""}`}
