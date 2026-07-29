@@ -1,4 +1,5 @@
 import type {
+  JamBoxPlayback,
   JamBoxRoom,
   JamBoxUser,
   SpotifyProfile,
@@ -92,6 +93,7 @@ export async function getJamBoxRoom(code: string): Promise<JamBoxRoom> {
 
 type RoomSocketHandlers = {
   onRoomUpdated: () => void;
+  onPlaybackUpdated: () => void;
   onRoomClosed: () => void;
 };
 
@@ -100,7 +102,7 @@ export function connectToJamBoxRoom(
   code: string,
   handlers: RoomSocketHandlers,
 ): () => void {
-  const socketUrl = new URL(API_URL);
+  const socketUrl = new URL(API_URL, window.location.origin);
   socketUrl.protocol = socketUrl.protocol === "https:" ? "wss:" : "ws:";
   socketUrl.pathname = `${socketUrl.pathname}/rooms/${encodeURIComponent(
     code,
@@ -118,10 +120,18 @@ export function connectToJamBoxRoom(
   };
 
   const handleMessage = (event: MessageEvent<string>) => {
-    const message = JSON.parse(event.data) as { type?: string };
+    let message: { type?: string };
+    try {
+      message = JSON.parse(event.data) as { type?: string };
+    } catch {
+      return;
+    }
 
     if (message.type === "room_updated") {
       handlers.onRoomUpdated();
+    }
+    if (message.type === "playback_updated") {
+      handlers.onPlaybackUpdated();
     }
     if (message.type === "room_closed") {
       handlers.onRoomClosed();
@@ -145,6 +155,23 @@ export function connectToJamBoxRoom(
     socket?.close();
     socket = null;
   };
+}
+
+export type PlaybackUpdate = Omit<JamBoxPlayback, "version" | "changed_at">;
+
+export async function updateJamBoxPlayback(
+  userId: string,
+  code: string,
+  playback: PlaybackUpdate,
+): Promise<JamBoxRoom> {
+  return apiFetch<JamBoxRoom>(
+    `/rooms/${encodeURIComponent(code)}/playback`,
+    {
+      method: "PUT",
+      headers: { "X-User-Id": userId },
+      body: JSON.stringify(playback),
+    },
+  );
 }
 
 export async function leaveJamBoxRoom(

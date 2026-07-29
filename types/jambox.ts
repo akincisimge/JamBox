@@ -62,6 +62,20 @@ export type JamBoxRoomMember = {
   user: JamBoxUser;
 };
 
+export type JamBoxPlayback = {
+  spotify_uri: string;
+  spotify_track_id: string;
+  queue_uris: string[];
+  title: string;
+  artist: string;
+  album_image_url: string | null;
+  duration_ms: number;
+  position_ms: number;
+  is_playing: boolean;
+  version: number;
+  changed_at: string;
+};
+
 export type JamBoxRoom = {
   id: string;
   code: string;
@@ -70,4 +84,5 @@ export type JamBoxRoom = {
   is_active: boolean;
   created_at: string;
   members: JamBoxRoomMember[];
+  playback: JamBoxPlayback | null;
 };

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Response, WebSocket, WebSocketDisconnect, status
 from app.api.dependencies import CurrentUser, DatabaseSession
 from app.models.room import RoomMember
 from app.realtime.rooms import room_connections
-from app.schemas.room import MusicPermissionUpdate, RoomCreate, RoomResponse
+from app.schemas.room import MusicPermissionUpdate, PlaybackUpdate, RoomCreate, RoomResponse
 from app.services.errors import NotFoundError
 from app.services.rooms import (
     close_room,
@@ -15,6 +15,7 @@ from app.services.rooms import (
     join_room,
     leave_room,
     update_music_permission,
+    update_playback,
 )
 
 router = APIRouter(prefix="/rooms")
@@ -109,6 +110,19 @@ async def change_music_permission(
         payload.can_control_music,
     )
     await room_connections.broadcast(room.code, {"type": "room_updated"})
+    return RoomResponse.model_validate(updated_room)
+
+
+@router.put("/{code}/playback", response_model=RoomResponse)
+async def change_playback(
+    code: str,
+    payload: PlaybackUpdate,
+    session: DatabaseSession,
+    current_user: CurrentUser,
+) -> RoomResponse:
+    room = await get_room(session, code)
+    updated_room = await update_playback(session, room, current_user, payload)
+    await room_connections.broadcast(room.code, {"type": "playback_updated"})
     return RoomResponse.model_validate(updated_room)
 
 

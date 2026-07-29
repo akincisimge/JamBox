@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../components/ui/Icon";
 import { Logo } from "../components/ui/Logo";
 import { RoomModal } from "../components/room/RoomModal";
@@ -14,6 +14,7 @@ import {
   joinJamBoxRoom,
   leaveJamBoxRoom,
   registerJamBoxUser,
+  updateJamBoxPlayback,
 } from "../lib/jambox/client";
 import {
   clearSpotifySession,
@@ -22,6 +23,13 @@ import {
   readStoredSpotifyProfile,
   startSpotifyLogin,
 } from "../lib/spotify/client";
+import {
+  activateSpotifyRoomPlayer,
+  applyRoomPlayback,
+  createSpotifyRoomPlayer,
+  currentPlaybackPosition,
+  skipSpotifyPlayback,
+} from "../lib/spotify/playback";
 import { initialMessages, initialQueue } from "../mocks/room";
 import type {
   JamBoxRoom,
@@ -58,7 +66,12 @@ const [playlistError, setPlaylistError] =
   const [jamBoxUserId, setJamBoxUserId] = useState("");
   const [roomError, setRoomError] = useState("");
   const [roomSubmitting, setRoomSubmitting] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [songPickerOpen, setSongPickerOpen] = useState(false);
+  const [spotifyDeviceId, setSpotifyDeviceId] = useState("");
+  const [roomAudioEnabled, setRoomAudioEnabled] = useState(false);
+  const spotifyPlayerRef = useRef<SpotifyPlayer | null>(null);
+  const [playbackClock, setPlaybackClock] = useState(0);
+  const [demoIsPlaying, setDemoIsPlaying] = useState(true);
   const [queue, setQueue] = useState(initialQueue);
   const [messages, setMessages] = useState(initialMessages);
   const [message, setMessage] = useState("");
@@ -108,6 +121,13 @@ const [playlistError, setPlaylistError] =
           console.error("Oda güncellenemedi:", error);
         }
       },
+      onPlaybackUpdated: async () => {
+        try {
+          setActiveRoom(await getJamBoxRoom(activeRoomCode));
+        } catch (error) {
+          console.error("Oynatma durumu güncellenemedi:", error);
+        }
+      },
       onRoomClosed: () => {
         setActiveRoom(null);
         setView("home");
@@ -115,6 +135,63 @@ const [playlistError, setPlaylistError] =
       },
     });
   }, [activeRoomCode, jamBoxUserId, view]);
+
+  useEffect(() => {
+    if (view !== "room" || !spotifyProfile) return;
+
+    let stopped = false;
+    void createSpotifyRoomPlayer((message) => setToast(message))
+      .then(({ player, deviceId }) => {
+        if (stopped) {
+          player.disconnect();
+          return;
+        }
+        spotifyPlayerRef.current = player;
+        setSpotifyDeviceId(deviceId);
+      })
+      .catch((error) => {
+        setToast(
+          error instanceof Error
+            ? error.message
+            : "Spotify oynatıcısı başlatılamadı.",
+        );
+      });
+
+    return () => {
+      stopped = true;
+      spotifyPlayerRef.current?.disconnect();
+      spotifyPlayerRef.current = null;
+      setSpotifyDeviceId("");
+      setRoomAudioEnabled(false);
+    };
+  }, [spotifyProfile, view]);
+
+  const playback = activeRoom?.playback ?? null;
+  const canControlMusic =
+    activeRoom?.members.find((member) => member.user_id === jamBoxUserId)
+      ?.can_control_music ?? false;
+  const lastAppliedPlaybackRef = useRef("");
+
+  useEffect(() => {
+    if (!playback || !spotifyDeviceId || !roomAudioEnabled) return;
+    const playbackKey = `${spotifyDeviceId}:${playback.version}`;
+    if (lastAppliedPlaybackRef.current === playbackKey) return;
+    lastAppliedPlaybackRef.current = playbackKey;
+
+    void applyRoomPlayback(playback, spotifyDeviceId).catch((error) => {
+      setToast(
+        error instanceof Error
+          ? error.message
+          : "Ortak oynatma uygulanamadı.",
+      );
+    });
+  }, [playback, roomAudioEnabled, spotifyDeviceId]);
+
+  useEffect(() => {
+    if (!playback?.is_playing) return;
+    const timer = window.setInterval(() => setPlaybackClock(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [playback?.is_playing]);
 const openSpotifyPlaylist = async (
   playlist: SpotifyPlaylist
 ) => {
@@ -230,6 +307,137 @@ const openSpotifyPlaylist = async (
     }
   }
 
+  async function playTrackTogether(track: SpotifyTrack) {
+    if (!activeRoom || !jamBoxUserId) return;
+    try {
+      if (spotifyPlayerRef.current && spotifyDeviceId) {
+        await activateSpotifyRoomPlayer(
+          spotifyPlayerRef.current,
+          spotifyDeviceId,
+        );
+      }
+      setRoomAudioEnabled(true);
+      const room = await updateJamBoxPlayback(jamBoxUserId, activeRoom.code, {
+        spotify_uri: track.uri,
+        spotify_track_id: track.id,
+        queue_uris: playlistTracks.map((item) => item.uri),
+        title: track.name,
+        artist: track.artists.map((artist) => artist.name).join(", "),
+        album_image_url: track.album.images?.[0]?.url ?? null,
+        duration_ms: track.duration_ms,
+        position_ms: 0,
+        is_playing: true,
+      });
+      setActiveRoom(room);
+      setSongPickerOpen(false);
+      setSelectedPlaylist(null);
+      setPlaylistTracks([]);
+    } catch (error) {
+      setToast(
+        error instanceof JamBoxApiError
+          ? error.message
+          : "Şarkı başlatılamadı.",
+      );
+    }
+  }
+
+  async function enableRoomAudio() {
+    if (!spotifyPlayerRef.current || !spotifyDeviceId) {
+      setToast("Spotify oynatıcısı henüz hazırlanıyor.");
+      return;
+    }
+    try {
+      await activateSpotifyRoomPlayer(
+        spotifyPlayerRef.current,
+        spotifyDeviceId,
+      );
+      setRoomAudioEnabled(true);
+      if (playback) {
+        lastAppliedPlaybackRef.current = "";
+        await applyRoomPlayback(playback, spotifyDeviceId);
+        lastAppliedPlaybackRef.current = `${spotifyDeviceId}:${playback.version}`;
+      }
+      setToast("Ortak ses etkinleştirildi.");
+    } catch (error) {
+      setToast(
+        error instanceof Error ? error.message : "Ortak ses etkinleştirilemedi.",
+      );
+    }
+  }
+
+  async function toggleRoomPlayback() {
+    if (!activeRoom?.playback || !jamBoxUserId) return;
+    const current = activeRoom.playback;
+    try {
+      setActiveRoom(
+        await updateJamBoxPlayback(jamBoxUserId, activeRoom.code, {
+          spotify_uri: current.spotify_uri,
+          spotify_track_id: current.spotify_track_id,
+          queue_uris: current.queue_uris,
+          title: current.title,
+          artist: current.artist,
+          album_image_url: current.album_image_url,
+          duration_ms: current.duration_ms,
+          position_ms: Math.floor(currentPlaybackPosition(current)),
+          is_playing: !current.is_playing,
+        }),
+      );
+    } catch (error) {
+      setToast(
+        error instanceof JamBoxApiError
+          ? error.message
+          : "Oynatma durumu değiştirilemedi.",
+      );
+    }
+  }
+
+  async function skipRoomTrack(direction: "previous" | "next") {
+    if (!activeRoom || !jamBoxUserId || !spotifyDeviceId) return;
+    if (!canControlMusic) {
+      setToast("Bu odada müzik kontrol yetkin yok.");
+      return;
+    }
+    try {
+      const state = await skipSpotifyPlayback(direction, spotifyDeviceId);
+      const track = state.track;
+      setActiveRoom(
+        await updateJamBoxPlayback(jamBoxUserId, activeRoom.code, {
+          spotify_uri: track.uri,
+          spotify_track_id: track.id,
+          queue_uris: activeRoom.playback?.queue_uris ?? [track.uri],
+          title: track.name,
+          artist: track.artists.map((artist) => artist.name).join(", "),
+          album_image_url: track.album.images?.[0]?.url ?? null,
+          duration_ms: track.duration_ms,
+          position_ms: state.positionMs,
+          is_playing: state.isPlaying,
+        }),
+      );
+    } catch (error) {
+      setToast(
+        error instanceof Error
+          ? error.message
+          : "Spotify şarkısı değiştirilemedi.",
+      );
+    }
+  }
+
+  function formatTime(milliseconds: number): string {
+    const seconds = Math.floor(milliseconds / 1000);
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  }
+
+  const displayedPosition = useMemo(
+    () =>
+      playback
+        ? Math.min(
+            currentPlaybackPosition(playback) + playbackClock * 0,
+            playback.duration_ms,
+          )
+        : 0,
+    [playback, playbackClock],
+  );
+
   function vote(id: number) {
     setQueue((items) =>
       items.map((item) =>
@@ -343,53 +551,80 @@ const openSpotifyPlaylist = async (
               NOW PLAYING
             </div>
 
-            <div
-              className="large-art sunset"
-              aria-label="Abstract sunset album artwork"
-            >
-              <span>JM</span>
-            </div>
+            {playback?.album_image_url ? (
+              <img
+                className="large-art"
+                src={playback.album_image_url}
+                alt={`${playback.title} albüm kapağı`}
+              />
+            ) : (
+              <div
+                className="large-art sunset"
+                aria-label="Henüz şarkı seçilmedi"
+              >
+                <span>JM</span>
+              </div>
+            )}
 
             <div className="track-copy">
-              <h1>Midnight Drive</h1>
-              <p>Nova Lane</p>
+              <h1>{playback?.title ?? "Bir şarkı seç"}</h1>
+              <p>{playback?.artist ?? "Ortak dinleme başlamaya hazır"}</p>
             </div>
 
             <div className="progress">
-              <span>1:45</span>
+              <span>{formatTime(displayedPosition)}</span>
               <div>
-                <i />
+                <i
+                  style={{
+                    width: playback
+                      ? `${(displayedPosition / playback.duration_ms) * 100}%`
+                      : "0%",
+                  }}
+                />
               </div>
-              <span>3:48</span>
+              <span>{formatTime(playback?.duration_ms ?? 0)}</span>
             </div>
 
             <div className="player-controls">
-              <button aria-label="Previous track">
+              <button
+                onClick={() => skipRoomTrack("previous")}
+                disabled={!playback || !roomAudioEnabled || !canControlMusic}
+                aria-label="Previous track"
+              >
                 ‹
               </button>
 
               <button
                 className="main-play"
-                onClick={() =>
-                  setIsPlaying(!isPlaying)
-                }
+                onClick={toggleRoomPlayback}
+                disabled={!playback}
                 aria-label={
-                  isPlaying ? "Pause" : "Play"
+                  playback?.is_playing ? "Pause" : "Play"
                 }
               >
                 <Icon
-                  name={isPlaying ? "pause" : "play"}
+                  name={playback?.is_playing ? "pause" : "play"}
                   size={30}
                 />
               </button>
 
-              <button aria-label="Next track">
+              <button
+                onClick={() => skipRoomTrack("next")}
+                disabled={!playback || !roomAudioEnabled || !canControlMusic}
+                aria-label="Next track"
+              >
                 ›
               </button>
             </div>
 
             <p className="host-note">
-              Playback is controlled by the room host
+              {roomAudioEnabled ? (
+                "Spotify bu odada senkronize ediliyor"
+              ) : (
+                <button onClick={enableRoomAudio}>
+                  Sesi etkinleştir
+                </button>
+              )}
             </p>
           </section>
 
@@ -449,7 +684,7 @@ const openSpotifyPlaylist = async (
                 </p>
               </div>
 
-              <button>
+              <button onClick={() => setSongPickerOpen(true)}>
                 <Icon name="plus" size={18} />
                 Add a song
               </button>
@@ -495,6 +730,71 @@ const openSpotifyPlaylist = async (
 
         {toast && (
           <div className="toast">{toast}</div>
+        )}
+
+        {songPickerOpen && (
+          <div className="song-picker-backdrop">
+            <section className="song-picker panel">
+              <div className="section-heading">
+                <h2>Birlikte çal</h2>
+                <button
+                  className="close-track-panel"
+                  onClick={() => setSongPickerOpen(false)}
+                  aria-label="Şarkı seçiciyi kapat"
+                >
+                  ×
+                </button>
+              </div>
+
+              {!selectedPlaylist ? (
+                <div className="song-picker-playlists">
+                  {spotifyPlaylists.map((playlist) => (
+                    <button
+                      key={playlist.id}
+                      onClick={() => openSpotifyPlaylist(playlist)}
+                    >
+                      {playlist.images?.[0]?.url && (
+                        <img src={playlist.images[0].url} alt="" />
+                      )}
+                      <span>{playlist.name}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <button
+                    className="ghost-button"
+                    onClick={() => {
+                      setSelectedPlaylist(null);
+                      setPlaylistTracks([]);
+                    }}
+                  >
+                    ← Çalma listeleri
+                  </button>
+                  {playlistLoading && <p>Şarkılar yükleniyor...</p>}
+                  <div className="song-picker-tracks">
+                    {playlistTracks.map((track) => (
+                      <button
+                        key={track.id}
+                        onClick={() => playTrackTogether(track)}
+                      >
+                        {track.album.images?.[0]?.url && (
+                          <img src={track.album.images[0].url} alt="" />
+                        )}
+                        <span>
+                          <strong>{track.name}</strong>
+                          <small>
+                            {track.artists.map((artist) => artist.name).join(", ")}
+                          </small>
+                        </span>
+                        <Icon name="play" size={18} />
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </section>
+          </div>
         )}
       </main>
     );
@@ -624,12 +924,12 @@ const openSpotifyPlaylist = async (
                   <button
                     className="play"
                     onClick={() =>
-                      setIsPlaying(!isPlaying)
+                      setDemoIsPlaying(!demoIsPlaying)
                     }
                   >
                     <Icon
                       name={
-                        isPlaying
+                        demoIsPlaying
                           ? "pause"
                           : "play"
                       }
