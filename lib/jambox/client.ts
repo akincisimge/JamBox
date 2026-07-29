@@ -96,6 +96,7 @@ type RoomSocketHandlers = {
   onRoomUpdated: () => void;
   onPlaybackUpdated: () => void;
   onMessageCreated: (message: ChatMessage) => void;
+  onMessageUpdated: (message: ChatMessage) => void;
   onRoomClosed: () => void;
 };
 
@@ -146,6 +147,9 @@ export function connectToJamBoxRoom(
     }
     if (message.type === "message_created" && message.message) {
       handlers.onMessageCreated(message.message);
+    }
+    if (message.type === "message_updated" && message.message) {
+      handlers.onMessageUpdated(message.message);
     }
     if (message.type === "room_closed") {
       handlers.onRoomClosed();
@@ -202,6 +206,23 @@ export async function sendJamBoxMessage(
     },
   );
 }
+
+export async function toggleJamBoxMessageReaction(
+  userId: string,
+  code: string,
+  messageId: string,
+  emoji: string,
+): Promise<ChatMessage> {
+  return apiFetch<ChatMessage>(
+    `/rooms/${encodeURIComponent(code)}/messages/${encodeURIComponent(messageId)}/reactions`,
+    {
+      method: "PUT",
+      headers: { "X-User-Id": userId },
+      body: JSON.stringify({ emoji }),
+    },
+  );
+}
+
 
 export async function leaveJamBoxRoom(
   userId: string,
