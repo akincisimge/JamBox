@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import type { PistiCard, PistiGame } from "../../types/jambox";
 import styles from "./PistiActivity.module.css";
 
@@ -23,7 +24,7 @@ function PlayingCard({
   className?: string;
   disabled?: boolean;
   onClick?: () => void;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }) {
   const symbol = suitSymbols[card.suit];
   const red = redSuits.has(card.suit);
@@ -80,7 +81,6 @@ export function PistiActivity({
   const opponentScore = opponentId ? game?.scores[opponentId] ?? 0 : 0;
   const myCaptured = game?.captured_counts[currentUserId] ?? 0;
   const myPisti = game?.pisti_counts[currentUserId] ?? 0;
-  const opponentPisti = opponentId ? game?.pisti_counts[opponentId] ?? 0 : 0;
   const winnerName =
     game?.winner_user_id === game?.player_one_user_id
       ? game.player_one_user.display_name
@@ -151,7 +151,7 @@ export function PistiActivity({
               <span className={styles.versus}>VS</span>
               <div className={styles.player}>
                 <strong>{game.player_two_user?.display_name ?? "Rakip bekleniyor"}</strong>
-                <small>{game.player_two_user_id ? game.scores[game.player_two_user_id] ?? 0 : 0} puan · {opponentPisti} pişti</small>
+                <small>{game.player_two_user_id ? game.scores[game.player_two_user_id] ?? 0 : 0} puan · {game.player_two_user_id ? game.pisti_counts[game.player_two_user_id] ?? 0 : 0} pişti</small>
               </div>
             </div>
             <div className={styles.scoreboard}>
@@ -195,7 +195,7 @@ export function PistiActivity({
                         "--card-x": `${offset * 5}px`,
                         "--card-y": `${offset * -3}px`,
                         "--card-rotation": `${offset * 2.5}deg`,
-                      } as React.CSSProperties}
+                      } as CSSProperties}
                     />
                   );
                 })
