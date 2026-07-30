@@ -13,6 +13,12 @@ const suitSymbols: Record<PistiCard["suit"], string> = {
 
 const redSuits = new Set<PistiCard["suit"]>(["diamonds", "hearts"]);
 
+type CardTransformStyle = CSSProperties & {
+  "--card-x": string;
+  "--card-y": string;
+  "--card-rotation": string;
+};
+
 function PlayingCard({
   card,
   className = "",
@@ -185,17 +191,18 @@ export function PistiActivity({
               ) : (
                 game.table.slice(-5).map((card, index, cards) => {
                   const offset = index - cards.length + 1;
+                  const cardStyle: CardTransformStyle = {
+                    "--card-x": `${offset * 5}px`,
+                    "--card-y": `${offset * -3}px`,
+                    "--card-rotation": `${offset * 2.5}deg`,
+                  };
                   return (
                     <PlayingCard
                       card={card}
                       className={styles.tableCard}
                       key={card.id}
                       disabled
-                      style={{
-                        "--card-x": `${offset * 5}px`,
-                        "--card-y": `${offset * -3}px`,
-                        "--card-rotation": `${offset * 2.5}deg`,
-                      } as CSSProperties}
+                      style={cardStyle}
                     />
                   );
                 })
