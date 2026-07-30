@@ -33,7 +33,7 @@ type RoomSocketHandlers = {
   onRoomUpdated: () => void;
   onPlaybackUpdated: () => void;
   onChessUpdated: () => void;
-  onPistiUpdated: () => void;
+  onPistiUpdated?: () => void;
   onMessageCreated: (message: ChatMessage) => void;
   onMessageUpdated: (message: ChatMessage) => void;
   onRoomClosed: () => void;
@@ -56,7 +56,7 @@ export function connectToJamBoxRoom(userId: string, code: string, handlers: Room
     if (message.type === "room_updated") handlers.onRoomUpdated();
     if (message.type === "playback_updated") handlers.onPlaybackUpdated();
     if (message.type === "chess_updated") handlers.onChessUpdated();
-    if (message.type === "pisti_updated") handlers.onPistiUpdated();
+    if (message.type === "pisti_updated") handlers.onPistiUpdated?.();
     if (message.type === "message_created" && message.message) handlers.onMessageCreated(message.message);
     if (message.type === "message_updated" && message.message) handlers.onMessageUpdated(message.message);
     if (message.type === "room_closed") handlers.onRoomClosed();
