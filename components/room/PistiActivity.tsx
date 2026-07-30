@@ -87,11 +87,12 @@ export function PistiActivity({
   const opponentScore = opponentId ? game?.scores[opponentId] ?? 0 : 0;
   const myCaptured = game?.captured_counts[currentUserId] ?? 0;
   const myPisti = game?.pisti_counts[currentUserId] ?? 0;
-  const winnerName =
-    game?.winner_user_id === game?.player_one_user_id
+  const winnerName = !game?.winner_user_id
+    ? null
+    : game.winner_user_id === game.player_one_user_id
       ? game.player_one_user.display_name
-      : game?.winner_user_id === game?.player_two_user_id
-        ? game.player_two_user?.display_name
+      : game.winner_user_id === game.player_two_user_id
+        ? game.player_two_user?.display_name ?? null
         : null;
 
   return (
