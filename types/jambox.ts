@@ -12,7 +12,7 @@ export type ChatMessage = {
   user_id: string;
   text: string;
   reactions: Record<string, string[]>;
-  message_type: "text" | "chess_invite";
+  message_type: "text" | "chess_invite" | "pisti_invite";
   payload: Record<string, string>;
   created_at: string;
   user: JamBoxUser;
@@ -72,6 +72,31 @@ export type ChessGame = {
   updated_at: string;
   white_user: JamBoxUser;
   black_user: JamBoxUser | null;
+};
+
+export type PistiCard = {
+  id: string;
+  suit: "clubs" | "diamonds" | "hearts" | "spades";
+  rank: "A" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "J" | "Q" | "K";
+};
+
+export type PistiGame = {
+  id: string;
+  creator_id: string;
+  player_one_user_id: string;
+  player_two_user_id: string | null;
+  status: "waiting" | "active" | "finished";
+  turn_user_id: string | null;
+  hand: PistiCard[];
+  hand_counts: Record<string, number>;
+  captured_counts: Record<string, number>;
+  pisti_counts: Record<string, number>;
+  table: PistiCard[];
+  deck_count: number;
+  scores: Record<string, number>;
+  winner_user_id: string | null;
+  player_one_user: JamBoxUser;
+  player_two_user: JamBoxUser | null;
 };
 
 export type JamBoxRoom = {

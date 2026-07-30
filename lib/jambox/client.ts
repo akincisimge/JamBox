@@ -1,4 +1,4 @@
-import type { ChatMessage, JamBoxPlayback, JamBoxRoom, JamBoxUser, SpotifyProfile } from "../../types/jambox";
+import type { ChatMessage, JamBoxPlayback, JamBoxRoom, JamBoxUser, PistiGame, SpotifyProfile } from "../../types/jambox";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api").replace(/\/$/, "");
 
@@ -33,6 +33,7 @@ type RoomSocketHandlers = {
   onRoomUpdated: () => void;
   onPlaybackUpdated: () => void;
   onChessUpdated: () => void;
+  onPistiUpdated?: () => void;
   onMessageCreated: (message: ChatMessage) => void;
   onMessageUpdated: (message: ChatMessage) => void;
   onRoomClosed: () => void;
@@ -55,13 +56,12 @@ export function connectToJamBoxRoom(userId: string, code: string, handlers: Room
     if (message.type === "room_updated") handlers.onRoomUpdated();
     if (message.type === "playback_updated") handlers.onPlaybackUpdated();
     if (message.type === "chess_updated") handlers.onChessUpdated();
+    if (message.type === "pisti_updated") handlers.onPistiUpdated?.();
     if (message.type === "message_created" && message.message) handlers.onMessageCreated(message.message);
     if (message.type === "message_updated" && message.message) handlers.onMessageUpdated(message.message);
     if (message.type === "room_closed") handlers.onRoomClosed();
   };
-  const handleOpen = () => {
-    reconnectDelay = 1000;
-  };
+  const handleOpen = () => { reconnectDelay = 1000; };
   const handleClose = () => {
     socket = null;
     if (stopped || reconnectTimer !== undefined) return;
@@ -121,6 +121,21 @@ export async function offerJamBoxChessDraw(userId: string, code: string): Promis
 }
 export async function makeJamBoxChessMove(userId: string, code: string, fromSquare: string, toSquare: string, promotion?: string): Promise<JamBoxRoom> {
   return apiFetch<JamBoxRoom>(`/rooms/${encodeURIComponent(code)}/chess/moves`, { method: "POST", headers: { "X-User-Id": userId }, body: JSON.stringify({ from_square: fromSquare, to_square: toSquare, promotion: promotion ?? null }) });
+}
+export async function createJamBoxPistiGame(userId: string, code: string): Promise<PistiGame> {
+  return apiFetch<PistiGame>(`/rooms/${encodeURIComponent(code)}/pisti`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function getJamBoxPistiGame(userId: string, code: string): Promise<PistiGame> {
+  return apiFetch<PistiGame>(`/rooms/${encodeURIComponent(code)}/pisti`, { headers: { "X-User-Id": userId } });
+}
+export async function joinJamBoxPistiGame(userId: string, code: string): Promise<PistiGame> {
+  return apiFetch<PistiGame>(`/rooms/${encodeURIComponent(code)}/pisti/join`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function playJamBoxPistiCard(userId: string, code: string, cardId: string): Promise<PistiGame> {
+  return apiFetch<PistiGame>(`/rooms/${encodeURIComponent(code)}/pisti/cards`, { method: "POST", headers: { "X-User-Id": userId }, body: JSON.stringify({ card_id: cardId }) });
+}
+export async function restartJamBoxPistiGame(userId: string, code: string): Promise<PistiGame> {
+  return apiFetch<PistiGame>(`/rooms/${encodeURIComponent(code)}/pisti/restart`, { method: "POST", headers: { "X-User-Id": userId } });
 }
 export async function leaveJamBoxRoom(userId: string, code: string): Promise<void> {
   return apiFetch<void>(`/rooms/${encodeURIComponent(code)}/leave`, { method: "POST", headers: { "X-User-Id": userId } });
