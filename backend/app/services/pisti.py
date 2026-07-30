@@ -23,8 +23,13 @@ async def _require_member(session: AsyncSession, room: Room, user: User) -> Room
     return membership
 
 
-async def _load_game(session: AsyncSession, room: Room) -> PistiGame:
-    game = await session.scalar(
+async def _load_game(
+    session: AsyncSession,
+    room: Room,
+    *,
+    for_update: bool = False,
+) -> PistiGame:
+    query = (
         select(PistiGame)
         .where(PistiGame.room_id == room.id)
         .options(
@@ -33,6 +38,10 @@ async def _load_game(session: AsyncSession, room: Room) -> PistiGame:
         )
         .execution_options(populate_existing=True)
     )
+    if for_update:
+        query = query.with_for_update()
+
+    game = await session.scalar(query)
     if game is None:
         raise NotFoundError("Bu odada Pişti masası bulunamadı.")
     return game
@@ -183,7 +192,7 @@ async def join_pisti_game(
     session: AsyncSession, room: Room, actor: User
 ) -> PistiGameResponse:
     await _require_member(session, room, actor)
-    game = await _load_game(session, room)
+    game = await _load_game(session, room, for_update=True)
     if game.status != "waiting":
         raise ConflictError("Katılabileceğiniz açık bir Pişti daveti yok.")
     if game.player_one_user_id == actor.id:
@@ -212,7 +221,7 @@ async def make_pisti_move(
     session: AsyncSession, room: Room, actor: User, card_id: str
 ) -> PistiGameResponse:
     await _require_member(session, room, actor)
-    game = await _load_game(session, room)
+    game = await _load_game(session, room, for_update=True)
     if game.status != "active" or not game.state:
         raise ConflictError("Aktif Pişti oyunu bulunamadı.")
     if actor.id not in {game.player_one_user_id, game.player_two_user_id}:
@@ -238,7 +247,7 @@ async def restart_pisti_game(
     session: AsyncSession, room: Room, actor: User
 ) -> PistiGameResponse:
     await _require_member(session, room, actor)
-    game = await _load_game(session, room)
+    game = await _load_game(session, room, for_update=True)
     if actor.id not in {game.player_one_user_id, game.player_two_user_id}:
         raise ForbiddenError("Bu Pişti masasını yalnızca oyuncular yenileyebilir.")
     if game.player_two_user_id is None:
