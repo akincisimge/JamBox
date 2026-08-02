@@ -2249,6 +2249,50 @@ a { color: inherit; text-decoration: none; }
 }
 
 
+/* PLAY TOGETHER — GAME TABS */
+.room-page .game-tabs{
+  display:flex;
+  gap:6px;
+  margin-bottom:20px;
+  padding:4px;
+  background:color-mix(in srgb,var(--ambient-a) 6%,rgba(255,255,255,.02));
+  border:1px solid color-mix(in srgb,var(--ambient-a) 14%,rgba(255,255,255,.06));
+  border-radius:14px;
+  width:fit-content;
+}
+.room-page .game-tab{
+  min-height:38px;
+  padding:0 18px;
+  color:var(--muted);
+  background:transparent;
+  border:1px solid transparent;
+  border-radius:11px;
+  cursor:pointer;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.02em;
+  transition:color 180ms ease,background 180ms ease,border-color 180ms ease,transform 160ms ease;
+}
+.room-page .game-tab:hover:not(.active){
+  color:var(--text);
+  background:color-mix(in srgb,var(--ambient-a) 8%,rgba(255,255,255,.03));
+}
+.room-page .game-tab.active{
+  color:#fff;
+  background:linear-gradient(135deg,
+    color-mix(in srgb,var(--ambient-a) 22%,rgba(255,255,255,.06)),
+    color-mix(in srgb,var(--ambient-b) 14%,rgba(255,255,255,.03)));
+  border-color:color-mix(in srgb,var(--ambient-a) 36%,rgba(255,255,255,.12));
+  box-shadow:0 4px 16px color-mix(in srgb,var(--ambient-a) 16%,transparent),
+             inset 0 1px 0 rgba(255,255,255,.1);
+}
+.room-page .game-tab.active:hover{transform:translateY(-1px)}
+@media(max-width:520px){
+  .room-page .game-tabs{width:100%}
+  .room-page .game-tab{flex:1;text-align:center;padding:0 10px}
+}
+
+
 /* PLAY TOGETHER — REALTIME CHESS */
 .room-page .activities-panel{overflow:visible}
 .room-page .chess-activity{
