@@ -12,22 +12,28 @@ import { Icon } from "../components/ui/Icon";
 import { Logo } from "../components/ui/Logo";
 import { RoomModal } from "../components/room/RoomModal";
 import { ChessActivity } from "../components/room/ChessActivity";
+import { PistiActivity } from "../components/room/PistiActivity";
 import { SpotifySignInButton } from "../components/spotify/SpotifySignInButton";
 import {
   addJamBoxChessTestOpponent,
   closeJamBoxRoom,
   connectToJamBoxRoom,
   createJamBoxChessGame,
+  createJamBoxPistiGame,
   createJamBoxRoom,
+  getJamBoxPistiGame,
   getJamBoxRoom,
   JamBoxApiError,
   joinJamBoxChessGame,
+  joinJamBoxPistiGame,
   joinJamBoxRoom,
   leaveJamBoxRoom,
   makeJamBoxChessMove,
   offerJamBoxChessDraw,
+  playJamBoxPistiCard,
   resignJamBoxChessGame,
   restartJamBoxChessGame,
+  restartJamBoxPistiGame,
   registerJamBoxUser,
   sendJamBoxMessage,
   toggleJamBoxMessageReaction,
@@ -53,6 +59,7 @@ import { initialQueue } from "../mocks/room";
 import type {
   ChatMessage,
   JamBoxRoom,
+  PistiGame,
   SpotifyPlaylist,
   SpotifyProfile,
   SpotifyTrack,
@@ -107,6 +114,10 @@ const [searchLoading, setSearchLoading] = useState(false);
   const musicPanelWidth = 460;
   const [musicPanelCollapsed, setMusicPanelCollapsed] = useState(false);
   const [chessBusy, setChessBusy] = useState(false);
+  const [pistiGame, setPistiGame] = useState<PistiGame | null>(null);
+  const [pistiBusy, setPistiBusy] = useState(false);
+  const [pistiError, setPistiError] = useState("");
+  const [activeGameTab, setActiveGameTab] = useState<"chess" | "pisti">("chess");
   const [themeColors, setThemeColors] = useState({ primary: "#ff5c8a", secondary: "#7c3aed", deep: "#090b1d" });
 
   useEffect(() => {
@@ -240,6 +251,17 @@ const [searchLoading, setSearchLoading] = useState(false);
       return;
     }
 
+    // Odaya bağlanırken mevcut Pişti oyununu kontrol et
+    const fetchPistiState = async () => {
+      try {
+        setPistiGame(await getJamBoxPistiGame(jamBoxUserId, activeRoomCode));
+      } catch {
+        // 404 = henüz oyun yok, sorun değil
+        setPistiGame(null);
+      }
+    };
+    void fetchPistiState();
+
     return connectToJamBoxRoom(jamBoxUserId, activeRoomCode, {
       onRoomUpdated: async () => {
         try {
@@ -262,6 +284,14 @@ const [searchLoading, setSearchLoading] = useState(false);
           console.error("Satranç masası güncellenemedi:", error);
         }
       },
+      onPistiUpdated: async () => {
+        try {
+          setPistiGame(await getJamBoxPistiGame(jamBoxUserId, activeRoomCode));
+        } catch (error) {
+          console.error("Pişti masası güncellenemedi:", error);
+          setPistiGame(null);
+        }
+      },
       onMessageCreated: (newMessage) => {
         setMessages((items) =>
           items.some((item) => item.id === newMessage.id)
@@ -280,6 +310,7 @@ const [searchLoading, setSearchLoading] = useState(false);
         window.localStorage.removeItem(ACTIVE_ROOM_STORAGE_KEY);
         setActiveRoom(null);
         setMessages([]);
+        setPistiGame(null);
         setView("home");
         setToast("Oda sahibi odayı kapattı.");
       },
@@ -459,6 +490,8 @@ const openSpotifyPlaylist = async (
     setSpotifyPlaylists([]);
     setActiveRoom(null);
     setMessages([]);
+    setPistiGame(null);
+    setPistiError("");
     setView("home");
   };
 
@@ -523,6 +556,8 @@ const openSpotifyPlaylist = async (
       window.localStorage.removeItem(ACTIVE_ROOM_STORAGE_KEY);
       setActiveRoom(null);
       setMessages([]);
+      setPistiGame(null);
+      setPistiError("");
       setView("home");
     } catch (error) {
       setToast(
@@ -621,6 +656,71 @@ const openSpotifyPlaylist = async (
       setToast(error instanceof JamBoxApiError ? error.message : "Hamle yapılamadı.");
     } finally {
       setChessBusy(false);
+    }
+  }
+
+  async function openPistiTable() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setPistiBusy(true);
+    setPistiError("");
+    try {
+      const game = await createJamBoxPistiGame(jamBoxUserId, activeRoom.code);
+      setPistiGame(game);
+      setActiveGameTab("pisti");
+      setToast("Pişti daveti sohbete gönderildi.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Pişti masası açılamadı.";
+      setPistiError(msg);
+      setToast(msg);
+    } finally {
+      setPistiBusy(false);
+    }
+  }
+
+  async function acceptPistiInvite() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setPistiBusy(true);
+    setPistiError("");
+    try {
+      setPistiGame(await joinJamBoxPistiGame(jamBoxUserId, activeRoom.code));
+      setToast("Pişti masasına katıldın.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Pişti masasına katılamadın.";
+      setPistiError(msg);
+      setToast(msg);
+    } finally {
+      setPistiBusy(false);
+    }
+  }
+
+  async function playPistiCard(cardId: string) {
+    if (!activeRoom || !jamBoxUserId) return;
+    setPistiBusy(true);
+    setPistiError("");
+    try {
+      setPistiGame(await playJamBoxPistiCard(jamBoxUserId, activeRoom.code, cardId));
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Kart oynanamadı.";
+      setPistiError(msg);
+      setToast(msg);
+    } finally {
+      setPistiBusy(false);
+    }
+  }
+
+  async function restartPistiGame() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setPistiBusy(true);
+    setPistiError("");
+    try {
+      setPistiGame(await restartJamBoxPistiGame(jamBoxUserId, activeRoom.code));
+      setToast("Yeni Pişti oyunu başladı.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Yeni oyun başlatılamadı.";
+      setPistiError(msg);
+      setToast(msg);
+    } finally {
+      setPistiBusy(false);
     }
   }
 
@@ -1203,18 +1303,50 @@ const openSpotifyPlaylist = async (
           </aside>
 
           <section className="activities-panel panel" aria-labelledby="activities-title">
-            <ChessActivity
-              game={activeRoom?.chess_game ?? null}
-              currentUserId={jamBoxUserId}
-              busy={chessBusy}
-              onCreate={openChessTable}
-              onJoin={acceptChessInvite}
-              onAddTestOpponent={addChessTestOpponent}
-              onMove={playChessMove}
-              onRestart={restartChessGame}
-              onResign={resignChessGame}
-              onDraw={handleChessDraw}
-            />
+            <nav className="game-tabs" aria-label="Oyun sekmeleri">
+              <button
+                type="button"
+                className={`game-tab${activeGameTab === "chess" ? " active" : ""}`}
+                onClick={() => setActiveGameTab("chess")}
+              >
+                ♟ Satranç
+              </button>
+              <button
+                type="button"
+                className={`game-tab${activeGameTab === "pisti" ? " active" : ""}`}
+                onClick={() => setActiveGameTab("pisti")}
+              >
+                🂡 Pişti
+              </button>
+            </nav>
+
+            {activeGameTab === "chess" && (
+              <ChessActivity
+                game={activeRoom?.chess_game ?? null}
+                currentUserId={jamBoxUserId}
+                busy={chessBusy}
+                onCreate={openChessTable}
+                onJoin={acceptChessInvite}
+                onAddTestOpponent={addChessTestOpponent}
+                onMove={playChessMove}
+                onRestart={restartChessGame}
+                onResign={resignChessGame}
+                onDraw={handleChessDraw}
+              />
+            )}
+
+            {activeGameTab === "pisti" && (
+              <PistiActivity
+                game={pistiGame}
+                currentUserId={jamBoxUserId}
+                busy={pistiBusy}
+                error={pistiError}
+                onCreate={openPistiTable}
+                onJoin={acceptPistiInvite}
+                onPlayCard={playPistiCard}
+                onRestart={restartPistiGame}
+              />
+            )}
           </section>
 
           <section className="queue-panel panel music-library-panel">
