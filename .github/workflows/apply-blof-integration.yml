@@ -41,3 +41,5 @@ jobs:
             git commit -m "feat: integrate Blof across room frontend and API client"
             git push origin feature/blof-game
           fi
+
+# The workflow is intentionally scoped to integration source changes only.
