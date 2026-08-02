@@ -13,6 +13,7 @@ import { Logo } from "../components/ui/Logo";
 import { RoomModal } from "../components/room/RoomModal";
 import { ChessActivity } from "../components/room/ChessActivity";
 import { PistiActivity } from "../components/room/PistiActivity";
+import { PapazKactiActivity } from "../components/room/PapazKactiActivity";
 import { SpotifySignInButton } from "../components/spotify/SpotifySignInButton";
 import {
   addJamBoxChessTestOpponent,
@@ -38,6 +39,12 @@ import {
   sendJamBoxMessage,
   toggleJamBoxMessageReaction,
   updateJamBoxPlayback,
+  createJamBoxPapazKactiGame,
+  getJamBoxPapazKactiGame,
+  joinJamBoxPapazKactiGame,
+  startJamBoxPapazKactiGame,
+  drawJamBoxPapazKactiCard,
+  restartJamBoxPapazKactiGame,
 } from "../lib/jambox/client";
 import {
   clearSpotifySession,
@@ -60,6 +67,7 @@ import type {
   ChatMessage,
   JamBoxRoom,
   PistiGame,
+  PapazKactiGame,
   SpotifyPlaylist,
   SpotifyProfile,
   SpotifyTrack,
@@ -117,7 +125,10 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [pistiGame, setPistiGame] = useState<PistiGame | null>(null);
   const [pistiBusy, setPistiBusy] = useState(false);
   const [pistiError, setPistiError] = useState("");
-  const [activeGameTab, setActiveGameTab] = useState<"chess" | "pisti">("chess");
+  const [papazKactiGame, setPapazKactiGame] = useState<PapazKactiGame | null>(null);
+  const [papazKactiBusy, setPapazKactiBusy] = useState(false);
+  const [papazKactiError, setPapazKactiError] = useState("");
+  const [activeGameTab, setActiveGameTab] = useState<"chess" | "pisti" | "papaz_kacti">("chess");
   const [themeColors, setThemeColors] = useState({ primary: "#ff5c8a", secondary: "#7c3aed", deep: "#090b1d" });
 
   useEffect(() => {
@@ -251,16 +262,23 @@ const [searchLoading, setSearchLoading] = useState(false);
       return;
     }
 
-    // Odaya bağlanırken mevcut Pişti oyununu kontrol et
     const fetchPistiState = async () => {
       try {
         setPistiGame(await getJamBoxPistiGame(jamBoxUserId, activeRoomCode));
       } catch {
-        // 404 = henüz oyun yok, sorun değil
         setPistiGame(null);
       }
     };
     void fetchPistiState();
+
+    const fetchPapazKactiState = async () => {
+      try {
+        setPapazKactiGame(await getJamBoxPapazKactiGame(jamBoxUserId, activeRoomCode));
+      } catch {
+        setPapazKactiGame(null);
+      }
+    };
+    void fetchPapazKactiState();
 
     return connectToJamBoxRoom(jamBoxUserId, activeRoomCode, {
       onRoomUpdated: async () => {
@@ -292,6 +310,14 @@ const [searchLoading, setSearchLoading] = useState(false);
           setPistiGame(null);
         }
       },
+      onPapazKactiUpdated: async () => {
+        try {
+          setPapazKactiGame(await getJamBoxPapazKactiGame(jamBoxUserId, activeRoomCode));
+        } catch (error) {
+          console.error("Papaz Kaçtı masası güncellenemedi:", error);
+          setPapazKactiGame(null);
+        }
+      },
       onMessageCreated: (newMessage) => {
         setMessages((items) =>
           items.some((item) => item.id === newMessage.id)
@@ -311,6 +337,7 @@ const [searchLoading, setSearchLoading] = useState(false);
         setActiveRoom(null);
         setMessages([]);
         setPistiGame(null);
+        setPapazKactiGame(null);
         setView("home");
         setToast("Oda sahibi odayı kapattı.");
       },
@@ -492,6 +519,8 @@ const openSpotifyPlaylist = async (
     setMessages([]);
     setPistiGame(null);
     setPistiError("");
+    setPapazKactiGame(null);
+    setPapazKactiError("");
     setView("home");
   };
 
@@ -558,6 +587,8 @@ const openSpotifyPlaylist = async (
       setMessages([]);
       setPistiGame(null);
       setPistiError("");
+      setPapazKactiGame(null);
+      setPapazKactiError("");
       setView("home");
     } catch (error) {
       setToast(
@@ -721,6 +752,86 @@ const openSpotifyPlaylist = async (
       setToast(msg);
     } finally {
       setPistiBusy(false);
+    }
+  }
+
+  async function openPapazKactiTable() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setPapazKactiBusy(true);
+    setPapazKactiError("");
+    try {
+      setPapazKactiGame(await createJamBoxPapazKactiGame(jamBoxUserId, activeRoom.code));
+      setActiveGameTab("papaz_kacti");
+      setToast("Papaz Kaçtı daveti sohbete gönderildi.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Masa açılamadı.";
+      setPapazKactiError(msg);
+      setToast(msg);
+    } finally {
+      setPapazKactiBusy(false);
+    }
+  }
+
+  async function acceptPapazKactiInvite() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setPapazKactiBusy(true);
+    setPapazKactiError("");
+    try {
+      setPapazKactiGame(await joinJamBoxPapazKactiGame(jamBoxUserId, activeRoom.code));
+      setToast("Papaz Kaçtı masasına katıldın.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Masaya katılamadın.";
+      setPapazKactiError(msg);
+      setToast(msg);
+    } finally {
+      setPapazKactiBusy(false);
+    }
+  }
+
+  async function startPapazKactiGame() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setPapazKactiBusy(true);
+    setPapazKactiError("");
+    try {
+      setPapazKactiGame(await startJamBoxPapazKactiGame(jamBoxUserId, activeRoom.code));
+      setToast("Papaz Kaçtı başladı.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Oyun başlatılamadı.";
+      setPapazKactiError(msg);
+      setToast(msg);
+    } finally {
+      setPapazKactiBusy(false);
+    }
+  }
+
+  async function drawPapazKactiCard(cardIndex: number) {
+    if (!activeRoom || !jamBoxUserId) return;
+    setPapazKactiBusy(true);
+    setPapazKactiError("");
+    try {
+      setPapazKactiGame(await drawJamBoxPapazKactiCard(jamBoxUserId, activeRoom.code, cardIndex));
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Kart çekilemedi.";
+      setPapazKactiError(msg);
+      setToast(msg);
+    } finally {
+      setPapazKactiBusy(false);
+    }
+  }
+
+  async function restartPapazKactiGame() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setPapazKactiBusy(true);
+    setPapazKactiError("");
+    try {
+      setPapazKactiGame(await restartJamBoxPapazKactiGame(jamBoxUserId, activeRoom.code));
+      setToast("Yeni Papaz Kaçtı oyunu başladı.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Yeni oyun başlatılamadı.";
+      setPapazKactiError(msg);
+      setToast(msg);
+    } finally {
+      setPapazKactiBusy(false);
     }
   }
 
@@ -1225,6 +1336,27 @@ const openSpotifyPlaylist = async (
                         {activeRoom?.chess_game?.status === "active" && <b>Oyun başladı</b>}
                       </div>
                     )}
+                    {item.message_type === "papaz_kacti_invite" && (
+                      <div className="chess-invite-card">
+                        <span>🃏</span>
+                        <div>
+                          <strong>Papaz Kaçtı daveti</strong>
+                          <small>Müzik devam ederken masaya katıl.</small>
+                        </div>
+                        {papazKactiGame?.status === "waiting" &&
+                          ![
+                            papazKactiGame.player_one_user_id,
+                            papazKactiGame.player_two_user_id,
+                            papazKactiGame.player_three_user_id,
+                            papazKactiGame.player_four_user_id,
+                          ].includes(jamBoxUserId) && (
+                            <button type="button" onClick={acceptPapazKactiInvite} disabled={papazKactiBusy}>
+                              Katıl
+                            </button>
+                          )}
+                        {papazKactiGame?.status === "active" && <b>Oyun başladı</b>}
+                      </div>
+                    )}
                     <div className="message-reactions">
                       {Object.entries(item.reactions ?? {}).map(
                         ([emoji, userIds]) => (
@@ -1318,6 +1450,13 @@ const openSpotifyPlaylist = async (
               >
                 🂡 Pişti
               </button>
+              <button
+                type="button"
+                className={`game-tab${activeGameTab === "papaz_kacti" ? " active" : ""}`}
+                onClick={() => setActiveGameTab("papaz_kacti")}
+              >
+                🃏 Papaz Kaçtı
+              </button>
             </nav>
 
             {activeGameTab === "chess" && (
@@ -1345,6 +1484,20 @@ const openSpotifyPlaylist = async (
                 onJoin={acceptPistiInvite}
                 onPlayCard={playPistiCard}
                 onRestart={restartPistiGame}
+              />
+            )}
+
+            {activeGameTab === "papaz_kacti" && (
+              <PapazKactiActivity
+                game={papazKactiGame}
+                currentUserId={jamBoxUserId}
+                busy={papazKactiBusy}
+                error={papazKactiError}
+                onCreate={openPapazKactiTable}
+                onJoin={acceptPapazKactiInvite}
+                onStart={startPapazKactiGame}
+                onDrawCard={drawPapazKactiCard}
+                onRestart={restartPapazKactiGame}
               />
             )}
           </section>

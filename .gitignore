@@ -80,3 +80,4 @@ __pycache__/
 # Local database volumes and editor state
 .idea/
 .vscode/
+*.tsbuildinfo
