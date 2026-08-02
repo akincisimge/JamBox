@@ -15,7 +15,7 @@ class BlofCardResponse(BaseModel):
 
 
 class BlofPlayRequest(BaseModel):
-    card_ids: list[str] = Field(min_length=1, max_length=4)
+    card_ids: list[str] = Field(min_length=1)
     declared_rank: BlofRank
 
 
