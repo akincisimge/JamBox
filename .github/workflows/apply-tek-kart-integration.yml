@@ -1,18 +1,17 @@
 name: Apply Tek Kart integration
 
 on:
-  push:
+  pull_request:
+    types: [opened]
     branches:
-      - feature/tek-kart-game
-    paths:
-      - automation/apply_tek_kart_app.py
-      - .github/workflows/apply-tek-kart-integration.yml
+      - main
 
 permissions:
   contents: write
 
 jobs:
   apply:
+    if: github.head_ref == 'feature/tek-kart-game'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
