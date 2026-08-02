@@ -287,13 +287,17 @@ async def restart_papaz_kacti_game(
     await _require_member(session, room, actor)
     game = await _load_game(session, room, for_update=True)
     
+    if game.status != "finished":
+        raise ConflictError("Oyun henüz bitmedi.")
+        
+    if actor.id != game.creator_id:
+        raise ForbiddenError("Oyunu yalnızca masa sahibi yeniden başlatabilir.")
+    
     player_ids = [game.player_one_user_id]
     if game.player_two_user_id: player_ids.append(game.player_two_user_id)
     if game.player_three_user_id: player_ids.append(game.player_three_user_id)
     if game.player_four_user_id: player_ids.append(game.player_four_user_id)
         
-    if actor.id not in player_ids:
-        raise ForbiddenError("Oyunu yalnızca masadaki oyuncular yenileyebilir.")
     if len(player_ids) < 2:
         raise ConflictError("Yeni oyun için en az iki oyuncu bekleniyor.")
 

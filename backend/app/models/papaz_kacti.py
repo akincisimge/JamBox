@@ -3,8 +3,8 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import ForeignKey, String
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -38,7 +38,7 @@ class PapazKactiGame(TimestampMixin, Base):
     )
     
     status: Mapped[str] = mapped_column(String(16), default="waiting")
-    state: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    state: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     
     loser_user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
