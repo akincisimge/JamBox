@@ -22,6 +22,16 @@ from app.services.papaz_kacti import (
 )
 
 
+def make_test_user(user_id: uuid.UUID, name: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=user_id,
+        display_name=name,
+        spotify_id=name,
+        email=f"{name}@a.com",
+        avatar_url="url",
+        created_at="2023-01-01T00:00:00Z",
+    )
+
 def test_papaz_kacti_routes_are_documented() -> None:
     with TestClient(app) as client:
         schema = client.get("/openapi.json").json()
@@ -285,8 +295,8 @@ async def test_get_game_state_hides_other_hands() -> None:
         player_four_user_id=None,
         creator_id=actor_id,
         loser_user_id=None,
-        player_one_user=SimpleNamespace(id=actor_id, display_name="p1", spotify_id="p1", email="p1@a.com", avatar_url="url", created_at="2023-01-01T00:00:00Z"),
-        player_two_user=SimpleNamespace(id=p2_id, display_name="p2", spotify_id="p2", email="p2@a.com", avatar_url="url", created_at="2023-01-01T00:00:00Z"),
+        player_one_user=make_test_user(actor_id, "p1"),
+        player_two_user=make_test_user(p2_id, "p2"),
         player_three_user=None,
         player_four_user=None,
     )
@@ -330,8 +340,8 @@ async def test_get_game_state_spectator_sees_no_hands() -> None:
         player_four_user_id=None,
         creator_id=p1_id,
         loser_user_id=None,
-        player_one_user=SimpleNamespace(id=p1_id, display_name="p1", spotify_id="p1", email="p1@a.com", avatar_url="url", created_at="2023-01-01T00:00:00Z"),
-        player_two_user=SimpleNamespace(id=p2_id, display_name="p2", spotify_id="p2", email="p2@a.com", avatar_url="url", created_at="2023-01-01T00:00:00Z"),
+        player_one_user=make_test_user(p1_id, "p1"),
+        player_two_user=make_test_user(p2_id, "p2"),
         player_three_user=None,
         player_four_user=None,
     )
@@ -345,36 +355,78 @@ async def test_get_game_state_spectator_sees_no_hands() -> None:
 
 @pytest.mark.asyncio
 async def test_websocket_payload_no_state_leak() -> None:
-    # Just verify that start_papaz_kacti_game fires papaz_kacti_updated without state
-    from app.services.papaz_kacti import start_papaz_kacti_game
-    creator_id = uuid.uuid4()
-    p2_id = uuid.uuid4()
-    room = SimpleNamespace(id=uuid.uuid4(), code="TEST12")
-    actor = SimpleNamespace(id=creator_id)
-    session = AsyncMock()
-    session.get.return_value = SimpleNamespace(user_id=creator_id)
+    from fastapi.testclient import TestClient
 
-    game = SimpleNamespace(
+    from app.api.dependencies import get_current_user, get_db_session
+    from app.main import app
+    
+    actor_id = uuid.uuid4()
+    p2_id = uuid.uuid4()
+    actor = make_test_user(actor_id, "p1")
+    
+    async def mock_get_current_user():
+        return actor
+        
+    async def mock_get_db_session():
+        yield AsyncMock()
+        
+    app.dependency_overrides[get_current_user] = mock_get_current_user
+    app.dependency_overrides[get_db_session] = mock_get_db_session
+    
+    game_response = SimpleNamespace(
         id=uuid.uuid4(),
-        status="waiting",
-        state=None,
-        player_one_user_id=creator_id,
+        status="active",
+        creator_id=actor_id,
+        player_one_user_id=actor_id,
         player_two_user_id=p2_id,
         player_three_user_id=None,
         player_four_user_id=None,
-        creator_id=creator_id,
+        turn_user_id=actor_id,
         loser_user_id=None,
-        player_one_user=SimpleNamespace(id=creator_id, display_name="p1", spotify_id="p1", email="p1@a.com", avatar_url="url", created_at="2023-01-01T00:00:00Z"),
-        player_two_user=SimpleNamespace(id=p2_id, display_name="p2", spotify_id="p2", email="p2@a.com", avatar_url="url", created_at="2023-01-01T00:00:00Z"),
+        hand=[],
+        hand_counts={str(actor_id): 1, str(p2_id): 1},
+        player_one_user=actor,
+        player_two_user=make_test_user(p2_id, "p2"),
         player_three_user=None,
         player_four_user=None,
+        model_dump=lambda **kwargs: {"status": "active"}
     )
+    
+    # We patch the service layer so the route logic executes
+    with (
+        patch(
+            "app.api.routes.papaz_kacti.get_room",
+            AsyncMock(return_value=SimpleNamespace(code="TEST12"))
+        ),
+        patch(
+            "app.api.routes.papaz_kacti.start_papaz_kacti_game",
+            AsyncMock(return_value=game_response)
+        ),
+        patch(
+            "app.api.routes.papaz_kacti.room_connections.broadcast",
+            AsyncMock()
+        ) as mock_broadcast
+    ):
+        with TestClient(app) as client:
+            response = client.post("/api/rooms/TEST12/papaz-kacti/start")
+            
+        assert response.status_code == 200
+        
+        mock_broadcast.assert_called_once_with(
+            "TEST12",
+            {"type": "papaz_kacti_updated"}
+        )
+        
+        # Verify exactly no state in payload
+        payload = mock_broadcast.call_args[0][1]
+        assert payload == {"type": "papaz_kacti_updated"}
+        assert "state" not in payload
+        assert "hand" not in payload
+        assert "hands" not in payload
+        assert "cards" not in payload
+        assert "players" not in payload
 
-    with patch("app.services.papaz_kacti._load_game", AsyncMock(return_value=game)):
-        response = await start_papaz_kacti_game(session, room, actor)
-        assert response.status == "active"
-        # Since response state is hidden from websockets, we prove this indirectly here
-        # or by checking the router. The test satisfies the requirement that state is isolated.
+    app.dependency_overrides.clear()
 
 @pytest.mark.asyncio
 async def test_restart_game_success() -> None:
@@ -395,8 +447,8 @@ async def test_restart_game_success() -> None:
         player_four_user_id=None,
         creator_id=creator_id,
         loser_user_id=None,
-        player_one_user=SimpleNamespace(id=creator_id, display_name="p1", spotify_id="p1", email="p1@a.com", avatar_url="url", created_at="2023-01-01T00:00:00Z"),
-        player_two_user=SimpleNamespace(id=p2_id, display_name="p2", spotify_id="p2", email="p2@a.com", avatar_url="url", created_at="2023-01-01T00:00:00Z"),
+        player_one_user=make_test_user(creator_id, "p1"),
+        player_two_user=make_test_user(p2_id, "p2"),
         player_three_user=None,
         player_four_user=None,
     )
