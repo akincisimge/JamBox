@@ -1,4 +1,4 @@
-import type { ChatMessage, JamBoxPlayback, JamBoxRoom, JamBoxUser, PistiGame, PapazKactiGame, SpotifyProfile } from "../../types/jambox";
+import type { ChatMessage, JamBoxPlayback, JamBoxRoom, JamBoxUser, PistiGame, PapazKactiGame, SpotifyProfile, TekKartColor, TekKartGame } from "../../types/jambox";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api").replace(/\/$/, "");
 
@@ -35,6 +35,7 @@ type RoomSocketHandlers = {
   onChessUpdated: () => void;
   onPistiUpdated?: () => void;
   onPapazKactiUpdated?: () => void;
+  onTekKartUpdated?: () => void;
   onMessageCreated: (message: ChatMessage) => void;
   onMessageUpdated: (message: ChatMessage) => void;
   onRoomClosed: () => void;
@@ -59,6 +60,7 @@ export function connectToJamBoxRoom(userId: string, code: string, handlers: Room
     if (message.type === "chess_updated") handlers.onChessUpdated();
     if (message.type === "pisti_updated") handlers.onPistiUpdated?.();
     if (message.type === "papaz_kacti_updated") handlers.onPapazKactiUpdated?.();
+    if (message.type === "tek_kart_updated") handlers.onTekKartUpdated?.();
     if (message.type === "message_created" && message.message) handlers.onMessageCreated(message.message);
     if (message.type === "message_updated" && message.message) handlers.onMessageUpdated(message.message);
     if (message.type === "room_closed") handlers.onRoomClosed();
@@ -156,6 +158,30 @@ export async function drawJamBoxPapazKactiCard(userId: string, code: string, car
 }
 export async function restartJamBoxPapazKactiGame(userId: string, code: string): Promise<PapazKactiGame> {
   return apiFetch<PapazKactiGame>(`/rooms/${encodeURIComponent(code)}/papaz-kacti/restart`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function createJamBoxTekKartGame(userId: string, code: string): Promise<TekKartGame> {
+  return apiFetch<TekKartGame>(`/rooms/${encodeURIComponent(code)}/tek-kart`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function getJamBoxTekKartGame(userId: string, code: string): Promise<TekKartGame> {
+  return apiFetch<TekKartGame>(`/rooms/${encodeURIComponent(code)}/tek-kart`, { headers: { "X-User-Id": userId } });
+}
+export async function joinJamBoxTekKartGame(userId: string, code: string): Promise<TekKartGame> {
+  return apiFetch<TekKartGame>(`/rooms/${encodeURIComponent(code)}/tek-kart/join`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function startJamBoxTekKartGame(userId: string, code: string): Promise<TekKartGame> {
+  return apiFetch<TekKartGame>(`/rooms/${encodeURIComponent(code)}/tek-kart/start`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function playJamBoxTekKartCard(userId: string, code: string, cardId: string, chosenColor?: TekKartColor): Promise<TekKartGame> {
+  return apiFetch<TekKartGame>(`/rooms/${encodeURIComponent(code)}/tek-kart/play`, { method: "POST", headers: { "X-User-Id": userId }, body: JSON.stringify({ card_id: cardId, chosen_color: chosenColor ?? null }) });
+}
+export async function drawJamBoxTekKartCard(userId: string, code: string): Promise<TekKartGame> {
+  return apiFetch<TekKartGame>(`/rooms/${encodeURIComponent(code)}/tek-kart/draw`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function callJamBoxTekKart(userId: string, code: string): Promise<TekKartGame> {
+  return apiFetch<TekKartGame>(`/rooms/${encodeURIComponent(code)}/tek-kart/call`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function restartJamBoxTekKartGame(userId: string, code: string): Promise<TekKartGame> {
+  return apiFetch<TekKartGame>(`/rooms/${encodeURIComponent(code)}/tek-kart/restart`, { method: "POST", headers: { "X-User-Id": userId } });
 }
 export async function leaveJamBoxRoom(userId: string, code: string): Promise<void> {
   return apiFetch<void>(`/rooms/${encodeURIComponent(code)}/leave`, { method: "POST", headers: { "X-User-Id": userId } });

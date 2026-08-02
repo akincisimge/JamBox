@@ -14,6 +14,7 @@ import { RoomModal } from "../components/room/RoomModal";
 import { ChessActivity } from "../components/room/ChessActivity";
 import { PistiActivity } from "../components/room/PistiActivity";
 import { PapazKactiActivity } from "../components/room/PapazKactiActivity";
+import { TekKartActivity } from "../components/room/TekKartActivity";
 import { SpotifySignInButton } from "../components/spotify/SpotifySignInButton";
 import {
   addJamBoxChessTestOpponent,
@@ -45,6 +46,14 @@ import {
   startJamBoxPapazKactiGame,
   drawJamBoxPapazKactiCard,
   restartJamBoxPapazKactiGame,
+  callJamBoxTekKart,
+  createJamBoxTekKartGame,
+  drawJamBoxTekKartCard,
+  getJamBoxTekKartGame,
+  joinJamBoxTekKartGame,
+  playJamBoxTekKartCard,
+  restartJamBoxTekKartGame,
+  startJamBoxTekKartGame,
 } from "../lib/jambox/client";
 import {
   clearSpotifySession,
@@ -68,6 +77,8 @@ import type {
   JamBoxRoom,
   PistiGame,
   PapazKactiGame,
+  TekKartColor,
+  TekKartGame,
   SpotifyPlaylist,
   SpotifyProfile,
   SpotifyTrack,
@@ -128,7 +139,12 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [papazKactiGame, setPapazKactiGame] = useState<PapazKactiGame | null>(null);
   const [papazKactiBusy, setPapazKactiBusy] = useState(false);
   const [papazKactiError, setPapazKactiError] = useState("");
-  const [activeGameTab, setActiveGameTab] = useState<"chess" | "pisti" | "papaz_kacti">("chess");
+  const [tekKartGame, setTekKartGame] = useState<TekKartGame | null>(null);
+  const [tekKartBusy, setTekKartBusy] = useState(false);
+  const [tekKartError, setTekKartError] = useState("");
+  const [activeGameTab, setActiveGameTab] = useState<
+    "chess" | "pisti" | "papaz_kacti" | "tek_kart"
+  >("chess");
   const [themeColors, setThemeColors] = useState({ primary: "#ff5c8a", secondary: "#7c3aed", deep: "#090b1d" });
 
   useEffect(() => {
@@ -280,6 +296,15 @@ const [searchLoading, setSearchLoading] = useState(false);
     };
     void fetchPapazKactiState();
 
+    const fetchTekKartState = async () => {
+      try {
+        setTekKartGame(await getJamBoxTekKartGame(jamBoxUserId, activeRoomCode));
+      } catch {
+        setTekKartGame(null);
+      }
+    };
+    void fetchTekKartState();
+
     return connectToJamBoxRoom(jamBoxUserId, activeRoomCode, {
       onRoomUpdated: async () => {
         try {
@@ -318,6 +343,14 @@ const [searchLoading, setSearchLoading] = useState(false);
           setPapazKactiGame(null);
         }
       },
+      onTekKartUpdated: async () => {
+        try {
+          setTekKartGame(await getJamBoxTekKartGame(jamBoxUserId, activeRoomCode));
+        } catch (error) {
+          console.error("Tek Kart masası güncellenemedi:", error);
+          setTekKartGame(null);
+        }
+      },
       onMessageCreated: (newMessage) => {
         setMessages((items) =>
           items.some((item) => item.id === newMessage.id)
@@ -338,6 +371,7 @@ const [searchLoading, setSearchLoading] = useState(false);
         setMessages([]);
         setPistiGame(null);
         setPapazKactiGame(null);
+        setTekKartGame(null);
         setView("home");
         setToast("Oda sahibi odayı kapattı.");
       },
@@ -521,6 +555,8 @@ const openSpotifyPlaylist = async (
     setPistiError("");
     setPapazKactiGame(null);
     setPapazKactiError("");
+    setTekKartGame(null);
+    setTekKartError("");
     setView("home");
   };
 
@@ -589,6 +625,8 @@ const openSpotifyPlaylist = async (
       setPistiError("");
       setPapazKactiGame(null);
       setPapazKactiError("");
+      setTekKartGame(null);
+      setTekKartError("");
       setView("home");
     } catch (error) {
       setToast(
@@ -832,6 +870,118 @@ const openSpotifyPlaylist = async (
       setToast(msg);
     } finally {
       setPapazKactiBusy(false);
+    }
+  }
+
+  async function openTekKartTable() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setTekKartBusy(true);
+    setTekKartError("");
+    try {
+      setTekKartGame(await createJamBoxTekKartGame(jamBoxUserId, activeRoom.code));
+      setActiveGameTab("tek_kart");
+      setToast("Tek Kart daveti sohbete gönderildi.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Tek Kart masası açılamadı.";
+      setTekKartError(msg);
+      setToast(msg);
+    } finally {
+      setTekKartBusy(false);
+    }
+  }
+
+  async function acceptTekKartInvite() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setTekKartBusy(true);
+    setTekKartError("");
+    try {
+      setTekKartGame(await joinJamBoxTekKartGame(jamBoxUserId, activeRoom.code));
+      setToast("Tek Kart masasına katıldın.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Tek Kart masasına katılamadın.";
+      setTekKartError(msg);
+      setToast(msg);
+    } finally {
+      setTekKartBusy(false);
+    }
+  }
+
+  async function startTekKartGame() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setTekKartBusy(true);
+    setTekKartError("");
+    try {
+      setTekKartGame(await startJamBoxTekKartGame(jamBoxUserId, activeRoom.code));
+      setToast("Tek Kart başladı.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Tek Kart başlatılamadı.";
+      setTekKartError(msg);
+      setToast(msg);
+    } finally {
+      setTekKartBusy(false);
+    }
+  }
+
+  async function playTekKartCard(cardId: string, chosenColor?: TekKartColor) {
+    if (!activeRoom || !jamBoxUserId) return;
+    setTekKartBusy(true);
+    setTekKartError("");
+    try {
+      setTekKartGame(
+        await playJamBoxTekKartCard(jamBoxUserId, activeRoom.code, cardId, chosenColor),
+      );
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Kart oynanamadı.";
+      setTekKartError(msg);
+      setToast(msg);
+    } finally {
+      setTekKartBusy(false);
+    }
+  }
+
+  async function drawTekKartCard() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setTekKartBusy(true);
+    setTekKartError("");
+    try {
+      setTekKartGame(await drawJamBoxTekKartCard(jamBoxUserId, activeRoom.code));
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Kart çekilemedi.";
+      setTekKartError(msg);
+      setToast(msg);
+    } finally {
+      setTekKartBusy(false);
+    }
+  }
+
+  async function announceTekKart() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setTekKartBusy(true);
+    setTekKartError("");
+    try {
+      setTekKartGame(await callJamBoxTekKart(jamBoxUserId, activeRoom.code));
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Tek Kart çağrısı yapılamadı.";
+      setTekKartError(msg);
+      setToast(msg);
+    } finally {
+      setTekKartBusy(false);
+    }
+  }
+
+  async function restartTekKartGame() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setTekKartBusy(true);
+    setTekKartError("");
+    try {
+      setTekKartGame(await restartJamBoxTekKartGame(jamBoxUserId, activeRoom.code));
+      setToast("Yeni Tek Kart oyunu başladı.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Yeni Tek Kart oyunu başlatılamadı.";
+      setTekKartError(msg);
+      setToast(msg);
+    } finally {
+      setTekKartBusy(false);
     }
   }
 
@@ -1357,6 +1507,22 @@ const openSpotifyPlaylist = async (
                         {papazKactiGame?.status === "active" && <b>Oyun başladı</b>}
                       </div>
                     )}
+                    {item.message_type === "tek_kart_invite" && (
+                      <div className="chess-invite-card">
+                        <span>🎨</span>
+                        <div>
+                          <strong>Tek Kart daveti</strong>
+                          <small>Müzik devam ederken masaya katıl.</small>
+                        </div>
+                        {tekKartGame?.status === "waiting" &&
+                          !tekKartGame.players.some((player) => player.user_id === jamBoxUserId) && (
+                            <button type="button" onClick={acceptTekKartInvite} disabled={tekKartBusy}>
+                              Katıl
+                            </button>
+                          )}
+                        {tekKartGame?.status === "active" && <b>Oyun başladı</b>}
+                      </div>
+                    )}
                     <div className="message-reactions">
                       {Object.entries(item.reactions ?? {}).map(
                         ([emoji, userIds]) => (
@@ -1457,6 +1623,13 @@ const openSpotifyPlaylist = async (
               >
                 🃏 Papaz Kaçtı
               </button>
+              <button
+                type="button"
+                className={`game-tab${activeGameTab === "tek_kart" ? " active" : ""}`}
+                onClick={() => setActiveGameTab("tek_kart")}
+              >
+                🎨 Tek Kart
+              </button>
             </nav>
 
             {activeGameTab === "chess" && (
@@ -1498,6 +1671,22 @@ const openSpotifyPlaylist = async (
                 onStart={startPapazKactiGame}
                 onDrawCard={drawPapazKactiCard}
                 onRestart={restartPapazKactiGame}
+              />
+            )}
+
+            {activeGameTab === "tek_kart" && (
+              <TekKartActivity
+                game={tekKartGame}
+                currentUserId={jamBoxUserId}
+                busy={tekKartBusy}
+                error={tekKartError}
+                onCreate={openTekKartTable}
+                onJoin={acceptTekKartInvite}
+                onStart={startTekKartGame}
+                onPlay={playTekKartCard}
+                onDraw={drawTekKartCard}
+                onCall={announceTekKart}
+                onRestart={restartTekKartGame}
               />
             )}
           </section>

@@ -12,7 +12,7 @@ export type ChatMessage = {
   user_id: string;
   text: string;
   reactions: Record<string, string[]>;
-  message_type: "text" | "chess_invite" | "pisti_invite" | "papaz_kacti_invite";
+  message_type: "text" | "chess_invite" | "pisti_invite" | "papaz_kacti_invite" | "tek_kart_invite";
   payload: Record<string, string>;
   created_at: string;
   user: JamBoxUser;
@@ -121,6 +121,51 @@ export type PapazKactiGame = {
   player_two_user: JamBoxUser | null;
   player_three_user: JamBoxUser | null;
   player_four_user: JamBoxUser | null;
+};
+
+export type TekKartColor = "red" | "yellow" | "green" | "blue";
+
+export type TekKartCardKind =
+  | "number"
+  | "skip"
+  | "reverse"
+  | "draw_two"
+  | "wild"
+  | "wild_draw_four";
+
+export type TekKartCard = {
+  id: string;
+  kind: TekKartCardKind;
+  color: TekKartColor | null;
+  number: number | null;
+};
+
+export type TekKartPlayer = {
+  user_id: string;
+  player_order: number;
+  hand_count: number;
+  is_current_turn: boolean;
+  is_creator: boolean;
+  user: JamBoxUser;
+};
+
+export type TekKartGame = {
+  id: string;
+  creator_id: string;
+  status: "waiting" | "active" | "finished";
+  version: number;
+  turn_user_id: string | null;
+  winner_user_id: string | null;
+  active_color: TekKartColor | null;
+  direction: -1 | 1;
+  draw_pile_count: number;
+  top_card: TekKartCard | null;
+  hand: TekKartCard[];
+  playable_card_ids: string[];
+  can_draw: boolean;
+  can_call_tek_kart: boolean;
+  called_tek_kart: boolean;
+  players: TekKartPlayer[];
 };
 
 export type JamBoxRoom = {
