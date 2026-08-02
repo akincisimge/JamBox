@@ -1,9 +1,9 @@
-app/JamBoxApp.tsx(359,28): error TS2769: No overload matches this call.
+app/JamBoxApp.tsx(332,28): error TS2769: No overload matches this call.
   Overload 1 of 2, '(event: "ready", callback: (event: SpotifyReadyEvent) => void): boolean', gave the following error.
     Argument of type '"not_ready"' is not assignable to parameter of type '"ready"'.
   Overload 2 of 2, '(event: "initialization_error" | "authentication_error" | "account_error" | "playback_error", callback: (event: SpotifyPlayerError) => void): boolean', gave the following error.
     Argument of type '"not_ready"' is not assignable to parameter of type '"initialization_error" | "authentication_error" | "account_error" | "playback_error"'.
-app/JamBoxApp.tsx(359,44): error TS7031: Binding element 'device_id' implicitly has an 'any' type.
+app/JamBoxApp.tsx(332,44): error TS7031: Binding element 'device_id' implicitly has an 'any' type.
 db/index.ts(1,21): error TS2307: Cannot find module 'cloudflare:workers' or its corresponding type declarations.
 worker/index.ts(6,11): error TS2304: Cannot find name 'Fetcher'.
 worker/index.ts(7,7): error TS2552: Cannot find name 'D1Database'. Did you mean 'IDBDatabase'?

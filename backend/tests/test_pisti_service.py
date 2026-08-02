@@ -58,9 +58,11 @@ async def test_creator_cannot_accept_own_pisti_invite() -> None:
     session.get.return_value = SimpleNamespace(user_id=creator_id)
     game = SimpleNamespace(status="waiting", player_one_user_id=creator_id)
 
-    with patch("app.services.pisti._load_game", AsyncMock(return_value=game)):
-        with pytest.raises(ConflictError, match="Kendi Pişti davetinize"):
-            await join_pisti_game(session, room, creator)
+    with (
+        patch("app.services.pisti._load_game", AsyncMock(return_value=game)),
+        pytest.raises(ConflictError, match="Kendi Pişti davetinize")
+    ):
+        await join_pisti_game(session, room, creator)
 
     session.commit.assert_not_awaited()
 

@@ -9,8 +9,8 @@ from sqlalchemy.orm import selectinload
 
 from app.games.cards import Card
 from app.games.papaz_kacti import (
-    PapazKactiState,
     PapazKactiPlayerState,
+    PapazKactiState,
     draw_card,
     start_game,
 )
@@ -191,9 +191,12 @@ async def join_papaz_kacti_game(
         raise ConflictError("Katılabileceğiniz açık bir Papaz Kaçtı daveti yok.")
         
     player_ids = [game.player_one_user_id]
-    if game.player_two_user_id: player_ids.append(game.player_two_user_id)
-    if game.player_three_user_id: player_ids.append(game.player_three_user_id)
-    if game.player_four_user_id: player_ids.append(game.player_four_user_id)
+    if game.player_two_user_id:
+        player_ids.append(game.player_two_user_id)
+    if game.player_three_user_id:
+        player_ids.append(game.player_three_user_id)
+    if game.player_four_user_id:
+        player_ids.append(game.player_four_user_id)
 
     if actor.id in player_ids:
         raise ConflictError("Bu oyuna zaten katıldınız.")
@@ -224,9 +227,12 @@ async def start_papaz_kacti_game(
         raise ForbiddenError("Oyunu sadece masayı açan başlatabilir.")
         
     player_ids = [str(game.player_one_user_id)]
-    if game.player_two_user_id: player_ids.append(str(game.player_two_user_id))
-    if game.player_three_user_id: player_ids.append(str(game.player_three_user_id))
-    if game.player_four_user_id: player_ids.append(str(game.player_four_user_id))
+    if game.player_two_user_id:
+        player_ids.append(str(game.player_two_user_id))
+    if game.player_three_user_id:
+        player_ids.append(str(game.player_three_user_id))
+    if game.player_four_user_id:
+        player_ids.append(str(game.player_four_user_id))
     
     if len(player_ids) < 2:
         raise ConflictError("Oyunu başlatmak için en az 2 oyuncu gerekiyor.")
@@ -258,9 +264,12 @@ async def draw_papaz_kacti_card(
         raise ConflictError("Aktif Papaz Kaçtı oyunu bulunamadı.")
         
     player_ids = [game.player_one_user_id]
-    if game.player_two_user_id: player_ids.append(game.player_two_user_id)
-    if game.player_three_user_id: player_ids.append(game.player_three_user_id)
-    if game.player_four_user_id: player_ids.append(game.player_four_user_id)
+    if game.player_two_user_id:
+        player_ids.append(game.player_two_user_id)
+    if game.player_three_user_id:
+        player_ids.append(game.player_three_user_id)
+    if game.player_four_user_id:
+        player_ids.append(game.player_four_user_id)
         
     if actor.id not in player_ids:
         raise ForbiddenError("Bu oyundaki oyunculardan biri değilsiniz.")
@@ -294,9 +303,12 @@ async def restart_papaz_kacti_game(
         raise ForbiddenError("Oyunu yalnızca masa sahibi yeniden başlatabilir.")
     
     player_ids = [game.player_one_user_id]
-    if game.player_two_user_id: player_ids.append(game.player_two_user_id)
-    if game.player_three_user_id: player_ids.append(game.player_three_user_id)
-    if game.player_four_user_id: player_ids.append(game.player_four_user_id)
+    if game.player_two_user_id:
+        player_ids.append(game.player_two_user_id)
+    if game.player_three_user_id:
+        player_ids.append(game.player_three_user_id)
+    if game.player_four_user_id:
+        player_ids.append(game.player_four_user_id)
         
     if len(player_ids) < 2:
         raise ConflictError("Yeni oyun için en az iki oyuncu bekleniyor.")

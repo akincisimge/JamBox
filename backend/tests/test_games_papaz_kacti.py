@@ -1,9 +1,8 @@
 import random
-import pytest
 
 from app.games.papaz_kacti import (
-    start_game,
     draw_card,
+    start_game,
 )
 
 
@@ -62,3 +61,53 @@ def test_game_over():
     
     assert state.status == "finished"
     assert state.loser_user_id == "u2"
+
+def test_start_game_3_players():
+    user_ids = ["u1", "u2", "u3"]
+    state = start_game(user_ids, rng=random.Random(42))
+    assert state.status == "active"
+    assert len(state.players) == 3
+    # Initial dealing checks
+    for player in state.players:
+        ranks = [card.rank for card in player.hand]
+        assert len(ranks) == len(set(ranks))
+
+def test_start_game_4_players():
+    user_ids = ["u1", "u2", "u3", "u4"]
+    state = start_game(user_ids, rng=random.Random(42))
+    assert state.status == "active"
+    assert len(state.players) == 4
+    for player in state.players:
+        ranks = [card.rank for card in player.hand]
+        assert len(ranks) == len(set(ranks))
+
+def test_skip_finished_players():
+    user_ids = ["u1", "u2", "u3"]
+    state = start_game(user_ids, rng=random.Random(42))
+    state.players[0].hand = []
+    state.players[0].is_finished = True
+    
+    state.players[1].hand = [state.players[1].hand[0]]
+    state.players[2].hand = [state.players[2].hand[0], state.players[2].hand[1]]
+    
+    # turn is 1 (u2)
+    state.turn_index = 1
+    # u2 draws from u3
+    draw_card(state, "u2", 0)
+    
+    # turn advances to next active player. u1 is finished, so it should be u3
+    assert state.turn_index == 2
+
+def test_last_two_players_turn():
+    user_ids = ["u1", "u2", "u3"]
+    state = start_game(user_ids, rng=random.Random(42))
+    state.players[0].is_finished = True
+    state.turn_index = 1
+    # U2 turn
+    draw_card(state, "u2", 0)
+    # advances to U3
+    assert state.turn_index == 2
+    # U3 turn
+    draw_card(state, "u3", 0)
+    # advances to U2
+    assert state.turn_index == 1

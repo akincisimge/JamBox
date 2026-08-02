@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Literal, Sequence
+from typing import Literal
 
 from app.games.cards import Card, fresh_deck
+
 
 @dataclass(slots=True)
 class PapazKactiPlayerState:
@@ -60,7 +62,9 @@ def start_game(
     return state
 
 
-def draw_card(state: PapazKactiState, user_id: str, card_index: int, rng: random.Random | None = None) -> None:
+def draw_card(
+    state: PapazKactiState, user_id: str, card_index: int, rng: random.Random | None = None
+) -> None:
     if state.status != "active":
         raise ValueError("Oyun aktif değil.")
         
@@ -117,7 +121,9 @@ def _discard_pairs(player: PapazKactiPlayerState) -> None:
     player.hand = new_hand
 
 
-def _get_next_active_player(state: PapazKactiState, current_index: int) -> PapazKactiPlayerState | None:
+def _get_next_active_player(
+    state: PapazKactiState, current_index: int
+) -> PapazKactiPlayerState | None:
     n = len(state.players)
     for i in range(1, n):
         idx = (current_index + i) % n
