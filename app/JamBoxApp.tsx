@@ -14,6 +14,7 @@ import { RoomModal } from "../components/room/RoomModal";
 import { ChessActivity } from "../components/room/ChessActivity";
 import { PistiActivity } from "../components/room/PistiActivity";
 import { PapazKactiActivity } from "../components/room/PapazKactiActivity";
+import { BlofActivity } from "../components/room/BlofActivity";
 import { SpotifySignInButton } from "../components/spotify/SpotifySignInButton";
 import {
   addJamBoxChessTestOpponent,
@@ -45,6 +46,14 @@ import {
   startJamBoxPapazKactiGame,
   drawJamBoxPapazKactiCard,
   restartJamBoxPapazKactiGame,
+  acceptJamBoxBlofPlay,
+  callJamBoxBlof,
+  createJamBoxBlofGame,
+  getJamBoxBlofGame,
+  joinJamBoxBlofGame,
+  playJamBoxBlofCards,
+  restartJamBoxBlofGame,
+  startJamBoxBlofGame,
 } from "../lib/jambox/client";
 import {
   clearSpotifySession,
@@ -68,6 +77,8 @@ import type {
   JamBoxRoom,
   PistiGame,
   PapazKactiGame,
+  BlofDeclaredRank,
+  BlofGame,
   SpotifyPlaylist,
   SpotifyProfile,
   SpotifyTrack,
@@ -128,7 +139,10 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [papazKactiGame, setPapazKactiGame] = useState<PapazKactiGame | null>(null);
   const [papazKactiBusy, setPapazKactiBusy] = useState(false);
   const [papazKactiError, setPapazKactiError] = useState("");
-  const [activeGameTab, setActiveGameTab] = useState<"chess" | "pisti" | "papaz_kacti">("chess");
+  const [blofGame, setBlofGame] = useState<BlofGame | null>(null);
+  const [blofBusy, setBlofBusy] = useState(false);
+  const [blofError, setBlofError] = useState("");
+  const [activeGameTab, setActiveGameTab] = useState<"chess" | "pisti" | "papaz_kacti" | "blof">("chess");
   const [themeColors, setThemeColors] = useState({ primary: "#ff5c8a", secondary: "#7c3aed", deep: "#090b1d" });
 
   useEffect(() => {
@@ -280,6 +294,15 @@ const [searchLoading, setSearchLoading] = useState(false);
     };
     void fetchPapazKactiState();
 
+    const fetchBlofState = async () => {
+      try {
+        setBlofGame(await getJamBoxBlofGame(jamBoxUserId, activeRoomCode));
+      } catch {
+        setBlofGame(null);
+      }
+    };
+    void fetchBlofState();
+
     return connectToJamBoxRoom(jamBoxUserId, activeRoomCode, {
       onRoomUpdated: async () => {
         try {
@@ -318,6 +341,14 @@ const [searchLoading, setSearchLoading] = useState(false);
           setPapazKactiGame(null);
         }
       },
+      onBlofUpdated: async () => {
+        try {
+          setBlofGame(await getJamBoxBlofGame(jamBoxUserId, activeRoomCode));
+        } catch (error) {
+          console.error("Blöf masası güncellenemedi:", error);
+          setBlofGame(null);
+        }
+      },
       onMessageCreated: (newMessage) => {
         setMessages((items) =>
           items.some((item) => item.id === newMessage.id)
@@ -338,6 +369,7 @@ const [searchLoading, setSearchLoading] = useState(false);
         setMessages([]);
         setPistiGame(null);
         setPapazKactiGame(null);
+        setBlofGame(null);
         setView("home");
         setToast("Oda sahibi odayı kapattı.");
       },
@@ -521,6 +553,8 @@ const openSpotifyPlaylist = async (
     setPistiError("");
     setPapazKactiGame(null);
     setPapazKactiError("");
+    setBlofGame(null);
+    setBlofError("");
     setView("home");
   };
 
@@ -832,6 +866,104 @@ const openSpotifyPlaylist = async (
       setToast(msg);
     } finally {
       setPapazKactiBusy(false);
+    }
+  }
+
+  async function openBlofTable() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setBlofBusy(true);
+    setBlofError("");
+    try {
+      setBlofGame(await createJamBoxBlofGame(jamBoxUserId, activeRoom.code));
+      setActiveGameTab("blof");
+      setToast("Blöf daveti sohbete gönderildi.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Blöf masası açılamadı.";
+      setBlofError(msg);
+      setToast(msg);
+    } finally {
+      setBlofBusy(false);
+    }
+  }
+
+  async function acceptBlofInvite() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setBlofBusy(true);
+    setBlofError("");
+    try {
+      setBlofGame(await joinJamBoxBlofGame(jamBoxUserId, activeRoom.code));
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Blöf masasına katılamadın.";
+      setBlofError(msg);
+      setToast(msg);
+    } finally {
+      setBlofBusy(false);
+    }
+  }
+
+  async function startBlofGame() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setBlofBusy(true);
+    setBlofError("");
+    try {
+      setBlofGame(await startJamBoxBlofGame(jamBoxUserId, activeRoom.code));
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Blöf başlatılamadı.";
+      setBlofError(msg);
+      setToast(msg);
+    } finally {
+      setBlofBusy(false);
+    }
+  }
+
+  async function playBlofCards(cardIds: string[], declaredRank: BlofDeclaredRank) {
+    if (!activeRoom || !jamBoxUserId) return;
+    setBlofBusy(true);
+    setBlofError("");
+    try {
+      setBlofGame(await playJamBoxBlofCards(jamBoxUserId, activeRoom.code, cardIds, declaredRank));
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Kartlar oynanamadı.";
+      setBlofError(msg);
+      setToast(msg);
+    } finally {
+      setBlofBusy(false);
+    }
+  }
+
+  async function challengeBlof() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setBlofBusy(true);
+    try {
+      setBlofGame(await callJamBoxBlof(jamBoxUserId, activeRoom.code));
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Blöf itirazı yapılamadı.");
+    } finally {
+      setBlofBusy(false);
+    }
+  }
+
+  async function acceptBlofLastPlay() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setBlofBusy(true);
+    try {
+      setBlofGame(await acceptJamBoxBlofPlay(jamBoxUserId, activeRoom.code));
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Son hamle kabul edilemedi.");
+    } finally {
+      setBlofBusy(false);
+    }
+  }
+
+  async function restartBlof() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setBlofBusy(true);
+    try {
+      setBlofGame(await restartJamBoxBlofGame(jamBoxUserId, activeRoom.code));
+    } catch (error) {
+      setToast(error instanceof JamBoxApiError ? error.message : "Yeni Blöf oyunu başlatılamadı.");
+    } finally {
+      setBlofBusy(false);
     }
   }
 
@@ -1357,6 +1489,22 @@ const openSpotifyPlaylist = async (
                         {papazKactiGame?.status === "active" && <b>Oyun başladı</b>}
                       </div>
                     )}
+                    {item.message_type === "blof_invite" && (
+                      <div className="chess-invite-card">
+                        <span>🎭</span>
+                        <div>
+                          <strong>Blöf daveti</strong>
+                          <small>Müzik devam ederken masaya katıl.</small>
+                        </div>
+                        {blofGame?.status === "waiting" &&
+                          !blofGame.players.some((player) => player.user_id === jamBoxUserId) && (
+                            <button type="button" onClick={acceptBlofInvite} disabled={blofBusy}>
+                              Katıl
+                            </button>
+                          )}
+                        {blofGame?.status === "active" && <b>Oyun başladı</b>}
+                      </div>
+                    )}
                     <div className="message-reactions">
                       {Object.entries(item.reactions ?? {}).map(
                         ([emoji, userIds]) => (
@@ -1457,6 +1605,13 @@ const openSpotifyPlaylist = async (
               >
                 🃏 Papaz Kaçtı
               </button>
+              <button
+                type="button"
+                className={`game-tab${activeGameTab === "blof" ? " active" : ""}`}
+                onClick={() => setActiveGameTab("blof")}
+              >
+                🎭 Blöf
+              </button>
             </nav>
 
             {activeGameTab === "chess" && (
@@ -1498,6 +1653,22 @@ const openSpotifyPlaylist = async (
                 onStart={startPapazKactiGame}
                 onDrawCard={drawPapazKactiCard}
                 onRestart={restartPapazKactiGame}
+              />
+            )}
+
+            {activeGameTab === "blof" && (
+              <BlofActivity
+                game={blofGame}
+                currentUserId={jamBoxUserId}
+                busy={blofBusy}
+                error={blofError}
+                onCreate={openBlofTable}
+                onJoin={acceptBlofInvite}
+                onStart={startBlofGame}
+                onPlay={playBlofCards}
+                onCall={challengeBlof}
+                onAccept={acceptBlofLastPlay}
+                onRestart={restartBlof}
               />
             )}
           </section>
