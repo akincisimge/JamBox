@@ -28,11 +28,11 @@ class TekKartCard:
 
     @property
     def symbol(self) -> str:
-        if self.kind == "number":
-            if self.number is None:
-                raise ValueError("Sayı kartında sayı bulunmalıdır.")
-            return str(self.number)
-        return self.kind
+        if self.kind != "number":
+            return self.kind
+        if self.number is None:
+            raise ValueError("Sayı kartında sayı bulunmalıdır.")
+        return str(self.number)
 
 
 @dataclass(slots=True)
@@ -183,10 +183,9 @@ def play_card(
         state.log.append(f"{user_id} oyunu kazandı.")
         return
 
-    if len(player.hand) == 1:
-        if not player.called_tek_kart:
-            penalty = _draw_cards(state, player, 2)
-            state.log.append(f"{user_id} Tek Kart demedi ve {penalty} kart çekti.")
+    if len(player.hand) == 1 and not player.called_tek_kart:
+        penalty = _draw_cards(state, player, 2)
+        state.log.append(f"{user_id} Tek Kart demedi ve {penalty} kart çekti.")
     player.called_tek_kart = False
 
     if card.kind == "skip":
