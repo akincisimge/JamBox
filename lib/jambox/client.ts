@@ -1,4 +1,4 @@
-import type { ChatMessage, JamBoxPlayback, JamBoxRoom, JamBoxUser, PistiGame, PapazKactiGame, SpotifyProfile } from "../../types/jambox";
+import type { BlofDeclaredRank, BlofGame, ChatMessage, JamBoxPlayback, JamBoxRoom, JamBoxUser, PistiGame, PapazKactiGame, SpotifyProfile } from "../../types/jambox";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api").replace(/\/$/, "");
 
@@ -35,6 +35,7 @@ type RoomSocketHandlers = {
   onChessUpdated: () => void;
   onPistiUpdated?: () => void;
   onPapazKactiUpdated?: () => void;
+  onBlofUpdated?: () => void;
   onMessageCreated: (message: ChatMessage) => void;
   onMessageUpdated: (message: ChatMessage) => void;
   onRoomClosed: () => void;
@@ -59,6 +60,7 @@ export function connectToJamBoxRoom(userId: string, code: string, handlers: Room
     if (message.type === "chess_updated") handlers.onChessUpdated();
     if (message.type === "pisti_updated") handlers.onPistiUpdated?.();
     if (message.type === "papaz_kacti_updated") handlers.onPapazKactiUpdated?.();
+    if (message.type === "blof_updated") handlers.onBlofUpdated?.();
     if (message.type === "message_created" && message.message) handlers.onMessageCreated(message.message);
     if (message.type === "message_updated" && message.message) handlers.onMessageUpdated(message.message);
     if (message.type === "room_closed") handlers.onRoomClosed();
@@ -156,6 +158,30 @@ export async function drawJamBoxPapazKactiCard(userId: string, code: string, car
 }
 export async function restartJamBoxPapazKactiGame(userId: string, code: string): Promise<PapazKactiGame> {
   return apiFetch<PapazKactiGame>(`/rooms/${encodeURIComponent(code)}/papaz-kacti/restart`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function createJamBoxBlofGame(userId: string, code: string): Promise<BlofGame> {
+  return apiFetch<BlofGame>(`/rooms/${encodeURIComponent(code)}/blof`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function getJamBoxBlofGame(userId: string, code: string): Promise<BlofGame> {
+  return apiFetch<BlofGame>(`/rooms/${encodeURIComponent(code)}/blof`, { headers: { "X-User-Id": userId } });
+}
+export async function joinJamBoxBlofGame(userId: string, code: string): Promise<BlofGame> {
+  return apiFetch<BlofGame>(`/rooms/${encodeURIComponent(code)}/blof/join`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function startJamBoxBlofGame(userId: string, code: string): Promise<BlofGame> {
+  return apiFetch<BlofGame>(`/rooms/${encodeURIComponent(code)}/blof/start`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function playJamBoxBlofCards(userId: string, code: string, cardIds: string[], declaredRank: BlofDeclaredRank): Promise<BlofGame> {
+  return apiFetch<BlofGame>(`/rooms/${encodeURIComponent(code)}/blof/play`, { method: "POST", headers: { "X-User-Id": userId }, body: JSON.stringify({ card_ids: cardIds, declared_rank: declaredRank }) });
+}
+export async function callJamBoxBlof(userId: string, code: string): Promise<BlofGame> {
+  return apiFetch<BlofGame>(`/rooms/${encodeURIComponent(code)}/blof/call`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function acceptJamBoxBlofPlay(userId: string, code: string): Promise<BlofGame> {
+  return apiFetch<BlofGame>(`/rooms/${encodeURIComponent(code)}/blof/accept`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function restartJamBoxBlofGame(userId: string, code: string): Promise<BlofGame> {
+  return apiFetch<BlofGame>(`/rooms/${encodeURIComponent(code)}/blof/restart`, { method: "POST", headers: { "X-User-Id": userId } });
 }
 export async function leaveJamBoxRoom(userId: string, code: string): Promise<void> {
   return apiFetch<void>(`/rooms/${encodeURIComponent(code)}/leave`, { method: "POST", headers: { "X-User-Id": userId } });
