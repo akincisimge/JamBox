@@ -1,4 +1,4 @@
-import type { ChatMessage, JamBoxPlayback, JamBoxRoom, JamBoxUser, PistiGame, SpotifyProfile } from "../../types/jambox";
+import type { ChatMessage, JamBoxPlayback, JamBoxRoom, JamBoxUser, PistiGame, PapazKactiGame, SpotifyProfile } from "../../types/jambox";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api").replace(/\/$/, "");
 
@@ -34,6 +34,7 @@ type RoomSocketHandlers = {
   onPlaybackUpdated: () => void;
   onChessUpdated: () => void;
   onPistiUpdated?: () => void;
+  onPapazKactiUpdated?: () => void;
   onMessageCreated: (message: ChatMessage) => void;
   onMessageUpdated: (message: ChatMessage) => void;
   onRoomClosed: () => void;
@@ -57,6 +58,7 @@ export function connectToJamBoxRoom(userId: string, code: string, handlers: Room
     if (message.type === "playback_updated") handlers.onPlaybackUpdated();
     if (message.type === "chess_updated") handlers.onChessUpdated();
     if (message.type === "pisti_updated") handlers.onPistiUpdated?.();
+    if (message.type === "papaz_kacti_updated") handlers.onPapazKactiUpdated?.();
     if (message.type === "message_created" && message.message) handlers.onMessageCreated(message.message);
     if (message.type === "message_updated" && message.message) handlers.onMessageUpdated(message.message);
     if (message.type === "room_closed") handlers.onRoomClosed();
@@ -136,6 +138,24 @@ export async function playJamBoxPistiCard(userId: string, code: string, cardId: 
 }
 export async function restartJamBoxPistiGame(userId: string, code: string): Promise<PistiGame> {
   return apiFetch<PistiGame>(`/rooms/${encodeURIComponent(code)}/pisti/restart`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function createJamBoxPapazKactiGame(userId: string, code: string): Promise<PapazKactiGame> {
+  return apiFetch<PapazKactiGame>(`/rooms/${encodeURIComponent(code)}/papaz-kacti`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function getJamBoxPapazKactiGame(userId: string, code: string): Promise<PapazKactiGame> {
+  return apiFetch<PapazKactiGame>(`/rooms/${encodeURIComponent(code)}/papaz-kacti`, { headers: { "X-User-Id": userId } });
+}
+export async function joinJamBoxPapazKactiGame(userId: string, code: string): Promise<PapazKactiGame> {
+  return apiFetch<PapazKactiGame>(`/rooms/${encodeURIComponent(code)}/papaz-kacti/join`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function startJamBoxPapazKactiGame(userId: string, code: string): Promise<PapazKactiGame> {
+  return apiFetch<PapazKactiGame>(`/rooms/${encodeURIComponent(code)}/papaz-kacti/start`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function drawJamBoxPapazKactiCard(userId: string, code: string, cardIndex: number): Promise<PapazKactiGame> {
+  return apiFetch<PapazKactiGame>(`/rooms/${encodeURIComponent(code)}/papaz-kacti/draw`, { method: "POST", headers: { "X-User-Id": userId }, body: JSON.stringify({ card_index: cardIndex }) });
+}
+export async function restartJamBoxPapazKactiGame(userId: string, code: string): Promise<PapazKactiGame> {
+  return apiFetch<PapazKactiGame>(`/rooms/${encodeURIComponent(code)}/papaz-kacti/restart`, { method: "POST", headers: { "X-User-Id": userId } });
 }
 export async function leaveJamBoxRoom(userId: string, code: string): Promise<void> {
   return apiFetch<void>(`/rooms/${encodeURIComponent(code)}/leave`, { method: "POST", headers: { "X-User-Id": userId } });
