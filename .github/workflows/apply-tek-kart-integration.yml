@@ -2,7 +2,7 @@ name: Apply Tek Kart integration
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, reopened]
     branches:
       - main
 
