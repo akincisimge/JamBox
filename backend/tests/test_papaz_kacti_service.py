@@ -117,7 +117,7 @@ async def test_draw_card_not_in_game() -> None:
     
     game = SimpleNamespace(
         status="active",
-        state={},
+        state={"status": "active", "players": []},
         player_one_user_id=uuid.uuid4(),
         player_two_user_id=uuid.uuid4(),
         player_three_user_id=None,
@@ -158,7 +158,7 @@ async def test_draw_card_invalid_index() -> None:
 
     with patch("app.services.papaz_kacti._load_game", AsyncMock(return_value=game)):
         # Invalid index 5 (only 1 card in target's hand)
-        with pytest.raises(ConflictError, match="Geçersiz kart seçimi"):
+        with pytest.raises(ConflictError, match="Geçersiz kart indeksi."):
             await draw_papaz_kacti_card(session, room, actor, 5)
 
 
