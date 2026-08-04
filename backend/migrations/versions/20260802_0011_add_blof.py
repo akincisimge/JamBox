@@ -1,8 +1,8 @@
-"""add tek kart game
+"""add blof game
 
-Revision ID: 20260802_0012
-Revises: 20260802_0011
-Create Date: 2026-08-02 21:45:00
+Revision ID: 20260802_0011
+Revises: 421671bf850b
+Create Date: 2026-08-02 18:00:00
 """
 
 from collections.abc import Sequence
@@ -11,15 +11,15 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "20260802_0012"
-down_revision: str | None = "20260802_0011"
+revision: str = "20260802_0011"
+down_revision: str | None = "421671bf850b"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     op.create_table(
-        "tek_kart_games",
+        "blof_games",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("room_id", sa.UUID(), nullable=False),
         sa.Column("creator_id", sa.UUID(), nullable=False),
@@ -67,13 +67,10 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        op.f("ix_tek_kart_games_room_id"),
-        "tek_kart_games",
-        ["room_id"],
-        unique=True,
+        op.f("ix_blof_games_room_id"), "blof_games", ["room_id"], unique=True
     )
 
 
 def downgrade() -> None:
-    op.drop_index(op.f("ix_tek_kart_games_room_id"), table_name="tek_kart_games")
-    op.drop_table("tek_kart_games")
+    op.drop_index(op.f("ix_blof_games_room_id"), table_name="blof_games")
+    op.drop_table("blof_games")

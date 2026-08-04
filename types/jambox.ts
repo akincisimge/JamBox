@@ -12,7 +12,7 @@ export type ChatMessage = {
   user_id: string;
   text: string;
   reactions: Record<string, string[]>;
-  message_type: "text" | "chess_invite" | "pisti_invite" | "papaz_kacti_invite" | "tek_kart_invite";
+  message_type: "text" | "chess_invite" | "pisti_invite" | "papaz_kacti_invite" | "tek_kart_invite" | "blof_invite";
   payload: Record<string, string>;
   created_at: string;
   user: JamBoxUser;
@@ -166,6 +166,51 @@ export type TekKartGame = {
   can_call_tek_kart: boolean;
   called_tek_kart: boolean;
   players: TekKartPlayer[];
+};
+
+export type BlofDeclaredRank =
+  | "A" | "2" | "3" | "4" | "5" | "6" | "7"
+  | "8" | "9" | "10" | "J" | "Q" | "K";
+
+export type BlofCard = {
+  id: string;
+  suit: "clubs" | "diamonds" | "hearts" | "spades";
+  rank: BlofDeclaredRank;
+};
+
+export type BlofPlayer = {
+  user_id: string;
+  player_order: number;
+  hand_count: number;
+  is_current_turn: boolean;
+  is_creator: boolean;
+  user: JamBoxUser;
+};
+
+export type BlofChallengeResult = {
+  truthful: boolean;
+  challenger_user_id: string;
+  challenged_user_id: string;
+  pile_receiver_user_id: string;
+  next_turn_user_id: string | null;
+  revealed_cards: BlofCard[];
+};
+
+export type BlofGame = {
+  id: string;
+  creator_id: string;
+  status: "waiting" | "active" | "finished";
+  version: number;
+  turn_user_id: string | null;
+  pending_winner_user_id: string | null;
+  winner_user_id: string | null;
+  pile_count: number;
+  last_play_count: number;
+  last_declared_rank: BlofDeclaredRank | null;
+  last_player_user_id: string | null;
+  hand: BlofCard[];
+  players: BlofPlayer[];
+  last_result: BlofChallengeResult | null;
 };
 
 export type JamBoxRoom = {
