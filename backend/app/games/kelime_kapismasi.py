@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 Difficulty = Literal["easy", "medium", "hard"]
@@ -71,10 +71,10 @@ class WordBattleState:
     stage_index: int = 0
     status: GameStatus = "countdown"
     phase_started_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
     phase_ends_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
     results: list[WordRoundResult] = field(default_factory=list)
     winner_user_id: str | None = None
@@ -339,7 +339,7 @@ def _player_by_id(state: WordBattleState, user_id: str) -> WordPlayerState:
 
 
 def _utc(value: datetime | None) -> datetime:
-    current = value or datetime.now(timezone.utc)
+    current = value or datetime.now(UTC)
     if current.tzinfo is None:
-        return current.replace(tzinfo=timezone.utc)
-    return current.astimezone(timezone.utc)
+        return current.replace(tzinfo=UTC)
+    return current.astimezone(UTC)

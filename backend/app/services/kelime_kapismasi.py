@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -536,4 +536,4 @@ async def restart_kelime_kapismasi_game(
     game.version += 1
     await session.commit()
     game = await _load_game(session, room)
-    return _game_response(game, actor.id, now=datetime.now(timezone.utc))
+    return _game_response(game, actor.id, now=datetime.now(UTC))

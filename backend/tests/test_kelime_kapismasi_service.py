@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -61,7 +61,7 @@ def test_curated_rounds_match_the_six_stage_plan() -> None:
 
 
 def test_state_round_trip_preserves_private_submissions_and_results() -> None:
-    now = datetime(2026, 8, 4, 10, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 4, 10, 0, tzinfo=UTC)
     state = start_game(["one", "two"], _build_rounds(), now=now)
     sync_state(state, now=now + timedelta(seconds=4))
     submit_word(state, "one", "kalem", now=now + timedelta(seconds=5))
@@ -78,7 +78,7 @@ def test_state_round_trip_preserves_private_submissions_and_results() -> None:
 def test_response_hides_opponents_words_during_active_stage() -> None:
     player_one_id = uuid.uuid4()
     player_two_id = uuid.uuid4()
-    now = datetime(2026, 8, 4, 10, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 4, 10, 0, tzinfo=UTC)
     state = start_game(
         [str(player_one_id), str(player_two_id)],
         _build_rounds(),
@@ -143,8 +143,8 @@ async def test_websocket_payload_contains_no_words_or_private_state() -> None:
         letters=["a", "a", "e", "k", "l", "m", "r", "t"],
         min_length=3,
         duration_seconds=45,
-        phase_started_at=datetime.now(timezone.utc),
-        phase_ends_at=datetime.now(timezone.utc) + timedelta(seconds=45),
+        phase_started_at=datetime.now(UTC),
+        phase_ends_at=datetime.now(UTC) + timedelta(seconds=45),
         remaining_seconds=45,
         own_words=[],
         own_word_count=0,

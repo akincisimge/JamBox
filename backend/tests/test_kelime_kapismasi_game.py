@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -13,8 +13,7 @@ from app.games.kelime_kapismasi import (
     sync_state,
 )
 
-
-BASE_TIME = datetime(2026, 8, 4, 10, 0, tzinfo=timezone.utc)
+BASE_TIME = datetime(2026, 8, 4, 10, 0, tzinfo=UTC)
 
 
 def rounds():
