@@ -90,3 +90,20 @@ def test_scoring_includes_special_cards_pisti_and_card_majority() -> None:
 
     assert scores(state) == {"simge": 20, "friend": 0}
 
+
+def test_running_score_does_not_award_card_majority_early() -> None:
+    state = PistiState(
+        players=[
+            PlayerState(
+                "simge",
+                captured=[Card("spades", "A"), Card("clubs", "4")],
+                pisti_count=1,
+            ),
+            PlayerState("friend", captured=[]),
+        ],
+        deck=[Card("hearts", "5")],
+        table=[],
+    )
+
+    assert scores(state, include_majority=False) == {"simge": 11, "friend": 0}
+    assert scores(state) == {"simge": 14, "friend": 0}
