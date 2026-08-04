@@ -1,4 +1,17 @@
-import type { BlofDeclaredRank, BlofGame, ChatMessage, JamBoxPlayback, JamBoxRoom, JamBoxUser, PistiGame, PapazKactiGame, SpotifyProfile, TekKartColor, TekKartGame } from "../../types/jambox";
+import type {
+  BlofDeclaredRank,
+  BlofGame,
+  ChatMessage,
+  JamBoxPlayback,
+  JamBoxRoom,
+  JamBoxUser,
+  KelimeKapismasiGame,
+  PapazKactiGame,
+  PistiGame,
+  SpotifyProfile,
+  TekKartColor,
+  TekKartGame,
+} from "../../types/jambox";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api").replace(/\/$/, "");
 
@@ -36,6 +49,7 @@ type RoomSocketHandlers = {
   onPistiUpdated?: () => void;
   onPapazKactiUpdated?: () => void;
   onTekKartUpdated?: () => void;
+  onKelimeKapismasiUpdated?: () => void;
   onBlofUpdated?: () => void;
   onMessageCreated: (message: ChatMessage) => void;
   onMessageUpdated: (message: ChatMessage) => void;
@@ -62,6 +76,7 @@ export function connectToJamBoxRoom(userId: string, code: string, handlers: Room
     if (message.type === "pisti_updated") handlers.onPistiUpdated?.();
     if (message.type === "papaz_kacti_updated") handlers.onPapazKactiUpdated?.();
     if (message.type === "tek_kart_updated") handlers.onTekKartUpdated?.();
+    if (message.type === "kelime_kapismasi_updated") handlers.onKelimeKapismasiUpdated?.();
     if (message.type === "blof_updated") handlers.onBlofUpdated?.();
     if (message.type === "message_created" && message.message) handlers.onMessageCreated(message.message);
     if (message.type === "message_updated" && message.message) handlers.onMessageUpdated(message.message);
@@ -209,6 +224,25 @@ export async function acceptJamBoxBlofPlay(userId: string, code: string): Promis
 export async function restartJamBoxBlofGame(userId: string, code: string): Promise<BlofGame> {
   return apiFetch<BlofGame>(`/rooms/${encodeURIComponent(code)}/blof/restart`, { method: "POST", headers: { "X-User-Id": userId } });
 }
+export async function createJamBoxKelimeKapismasiGame(userId: string, code: string): Promise<KelimeKapismasiGame> {
+  return apiFetch<KelimeKapismasiGame>(`/rooms/${encodeURIComponent(code)}/kelime-kapismasi`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function getJamBoxKelimeKapismasiGame(userId: string, code: string): Promise<KelimeKapismasiGame> {
+  return apiFetch<KelimeKapismasiGame>(`/rooms/${encodeURIComponent(code)}/kelime-kapismasi`, { headers: { "X-User-Id": userId } });
+}
+export async function joinJamBoxKelimeKapismasiGame(userId: string, code: string): Promise<KelimeKapismasiGame> {
+  return apiFetch<KelimeKapismasiGame>(`/rooms/${encodeURIComponent(code)}/kelime-kapismasi/join`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function startJamBoxKelimeKapismasiGame(userId: string, code: string): Promise<KelimeKapismasiGame> {
+  return apiFetch<KelimeKapismasiGame>(`/rooms/${encodeURIComponent(code)}/kelime-kapismasi/start`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+export async function submitJamBoxKelimeKapismasiWord(userId: string, code: string, word: string): Promise<KelimeKapismasiGame> {
+  return apiFetch<KelimeKapismasiGame>(`/rooms/${encodeURIComponent(code)}/kelime-kapismasi/words`, { method: "POST", headers: { "X-User-Id": userId }, body: JSON.stringify({ word: word.trim() }) });
+}
+export async function restartJamBoxKelimeKapismasiGame(userId: string, code: string): Promise<KelimeKapismasiGame> {
+  return apiFetch<KelimeKapismasiGame>(`/rooms/${encodeURIComponent(code)}/kelime-kapismasi/restart`, { method: "POST", headers: { "X-User-Id": userId } });
+}
+
 export async function leaveJamBoxRoom(userId: string, code: string): Promise<void> {
   return apiFetch<void>(`/rooms/${encodeURIComponent(code)}/leave`, { method: "POST", headers: { "X-User-Id": userId } });
 }
