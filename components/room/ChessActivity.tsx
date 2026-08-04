@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type CSSProperties, useMemo, useState } from "react";
 import type { ChessGame } from "../../types/jambox";
 
 const pieces: Record<string, string> = {
@@ -22,6 +22,17 @@ function boardFromFen(fen?: string) {
 
 function squareName(index: number) {
   return `${"abcdefgh"[index % 8]}${8 - Math.floor(index / 8)}`;
+}
+
+function pieceColorStyle(piece: string): CSSProperties | undefined {
+  if (!piece) return undefined;
+  const isWhitePiece = piece === piece.toUpperCase();
+  return {
+    color: isWhitePiece ? "#fff8e7" : "#101117",
+    textShadow: isWhitePiece
+      ? "0 2px 5px rgba(0,0,0,.78), 0 0 1px #000"
+      : "0 0 1px #fff, 0 1px 0 rgba(255,255,255,.9), 0 2px 5px rgba(0,0,0,.48)",
+  };
 }
 
 type Props = {
@@ -117,8 +128,8 @@ export function ChessActivity({
         {game?.status === "finished" && <div className="chess-turn">{resultText}</div>}
         {game && (
           <div className="chess-players">
-            <span><b>♔</b>{game.white_user.display_name}</span><em>VS</em>
-            <span><b>♚</b>{game.black_user?.display_name ?? "Rakip bekleniyor"}</span>
+            <span><b style={pieceColorStyle("K")}>♔</b>{game.white_user.display_name} · Beyaz</span><em>VS</em>
+            <span><b style={pieceColorStyle("k")}>♚</b>{game.black_user?.display_name ?? "Rakip bekleniyor"} · Siyah</span>
           </div>
         )}
         {game?.status === "active" && isPlayer && (
@@ -161,6 +172,7 @@ export function ChessActivity({
                 onClick={() => chooseSquare(index)}
                 disabled={!canMove || busy}
                 aria-label={`${square}${piece ? ` ${pieces[piece]}` : ""}`}
+                style={pieceColorStyle(piece)}
               >
                 {pieces[piece] ?? ""}
                 {isTarget && <i />}

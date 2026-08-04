@@ -1,6 +1,5 @@
 "use client";
 
-import type { CSSProperties } from "react";
 import type { PapazKactiCard, PapazKactiGame, JamBoxUser } from "../../types/jambox";
 import styles from "./PistiActivity.module.css";
 
@@ -9,6 +8,19 @@ const suitSymbols: Record<PapazKactiCard["suit"], string> = {
   diamonds: "♦",
   hearts: "♥",
   spades: "♠",
+};
+
+const suitNames: Record<PapazKactiCard["suit"], string> = {
+  clubs: "sinek",
+  diamonds: "karo",
+  hearts: "kupa",
+  spades: "maça",
+};
+
+const faceLabels: Partial<Record<PapazKactiCard["rank"], string>> = {
+  J: "VALE",
+  Q: "KIZ",
+  K: "PAPAZ",
 };
 
 const redSuits = new Set<PapazKactiCard["suit"]>(["diamonds", "hearts"]);
@@ -26,6 +38,8 @@ function PlayingCard({
 }) {
   const symbol = suitSymbols[card.suit];
   const red = redSuits.has(card.suit);
+  const faceLabel = faceLabels[card.rank];
+  const isKing = card.rank === "K";
 
   return (
     <button
@@ -33,24 +47,70 @@ function PlayingCard({
       className={`${styles.card} ${className} ${red ? styles.red : ""}`}
       disabled={disabled}
       onClick={onClick}
-      aria-label={`${card.rank} ${card.suit}`}
+      aria-label={`${faceLabel ?? card.rank} ${suitNames[card.suit]}`}
+      title={`${faceLabel ?? card.rank} ${suitNames[card.suit]}`}
+      style={
+        isKing
+          ? {
+              border: "2px solid #e5aa36",
+              background: "linear-gradient(145deg, #fff8dc, #fff1bd)",
+              boxShadow: "0 12px 26px rgba(0,0,0,.34), 0 0 0 3px rgba(229,170,54,.2)",
+            }
+          : undefined
+      }
     >
       <span className={styles.rank}>{card.rank}</span>
       <span className={styles.suit}>{symbol}</span>
-      <span className={styles.bigSuit} aria-hidden="true">{symbol}</span>
+      <span className={styles.bigSuit} aria-hidden="true">
+        {faceLabel ? (
+          <span
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 2,
+              lineHeight: 1,
+            }}
+          >
+            <strong style={{ fontSize: "clamp(24px, 3.5vw, 38px)" }}>{card.rank}</strong>
+            <small
+              style={{
+                fontFamily: '"Avenir Next", "Segoe UI", sans-serif',
+                fontSize: isKing ? 9 : 8,
+                letterSpacing: ".08em",
+                fontWeight: 950,
+              }}
+            >
+              {faceLabel}
+            </small>
+            <em style={{ fontSize: 16, fontStyle: "normal" }}>{symbol}</em>
+          </span>
+        ) : (
+          symbol
+        )}
+      </span>
     </button>
   );
 }
 
-function CardBack({ className = "", onClick, disabled = false }: { className?: string, onClick?: () => void, disabled?: boolean }) {
+function CardBack({
+  className = "",
+  onClick,
+  disabled = false,
+}: {
+  className?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
   if (onClick) {
     return (
-      <button 
-        type="button" 
-        className={`${styles.cardBack} ${className}`} 
+      <button
+        type="button"
+        className={`${styles.cardBack} ${className}`}
         onClick={onClick}
         disabled={disabled}
-        aria-label="Kart Çek"
+        aria-label="Kart çek"
         style={{ cursor: disabled ? "default" : "pointer" }}
       />
     );
@@ -82,38 +142,42 @@ export function PapazKactiActivity({
   onRestart,
 }: Props) {
   const isPlayer = Boolean(
-    game && [game.player_one_user_id, game.player_two_user_id, game.player_three_user_id, game.player_four_user_id].includes(currentUserId)
+    game &&
+      [
+        game.player_one_user_id,
+        game.player_two_user_id,
+        game.player_three_user_id,
+        game.player_four_user_id,
+      ].includes(currentUserId),
   );
-  
+
   const isCreator = Boolean(game && game.creator_id === currentUserId);
   const myTurn = game?.status === "active" && game.turn_user_id === currentUserId;
-  
-  const players = [];
+
+  const players: JamBoxUser[] = [];
   if (game?.player_one_user) players.push(game.player_one_user);
   if (game?.player_two_user) players.push(game.player_two_user);
   if (game?.player_three_user) players.push(game.player_three_user);
   if (game?.player_four_user) players.push(game.player_four_user);
-  
-  // Target player to draw from
+
   let targetPlayerId: string | null = null;
   let targetPlayerUser: JamBoxUser | null = null;
   if (game?.status === "active" && myTurn) {
-    const myIndex = players.findIndex(p => p.id === currentUserId);
-    for (let i = 1; i < players.length; i++) {
-      const idx = (myIndex + i) % players.length;
-      if (game.hand_counts[players[idx].id] > 0) {
-        targetPlayerId = players[idx].id;
-        targetPlayerUser = players[idx];
+    const myIndex = players.findIndex((player) => player.id === currentUserId);
+    for (let offset = 1; offset < players.length; offset += 1) {
+      const index = (myIndex + offset) % players.length;
+      if ((game.hand_counts[players[index].id] ?? 0) > 0) {
+        targetPlayerId = players[index].id;
+        targetPlayerUser = players[index];
         break;
       }
     }
   }
-  
+
   const targetHandCount = targetPlayerId ? game?.hand_counts[targetPlayerId] ?? 0 : 0;
-  
   const loserName = !game?.loser_user_id
     ? null
-    : players.find(p => p.id === game.loser_user_id)?.display_name ?? null;
+    : players.find((player) => player.id === game.loser_user_id)?.display_name ?? null;
 
   return (
     <section className={styles.activity} aria-label="Papaz Kaçtı masası">
@@ -128,7 +192,10 @@ export function PapazKactiActivity({
                 ? "Oyun devam ediyor"
                 : "Oyun bitti!"}
         </h2>
-        <p>Klasik Papaz Kaçtı! Çiftleri at, papazı elinde bırakmamaya çalış. 2-4 Kişilik.</p>
+        <p>
+          Çiftler otomatik atılır. <strong>K / PAPAZ</strong> yazılı altın çerçeveli
+          kartı elinde bırakmamaya çalış. J Vale, Q Kız, K Papazdır.
+        </p>
 
         {!game && (
           <button className={styles.primary} onClick={onCreate} disabled={busy}>
@@ -143,13 +210,13 @@ export function PapazKactiActivity({
         )}
 
         {game?.status === "waiting" && isPlayer && (
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <div className={styles.status} role="status">
               <i className={styles.statusDot} /> Bekleniyor ({players.length}/4)
             </div>
             {isCreator && players.length >= 2 && (
               <button className={styles.primary} onClick={onStart} disabled={busy}>
-                Oyunu Başlat
+                Oyunu başlat
               </button>
             )}
           </div>
@@ -158,7 +225,9 @@ export function PapazKactiActivity({
         {game?.status === "active" && (
           <div className={styles.status} role="status" aria-live="polite">
             <i className={styles.statusDot} />
-            {myTurn && targetPlayerUser ? `Sıra sende · ${targetPlayerUser.display_name} kullanıcısından kart çek` : "Hamle bekleniyor"}
+            {myTurn && targetPlayerUser
+              ? `Sıra sende · ${targetPlayerUser.display_name} kullanıcısından kart çek`
+              : "Hamle bekleniyor"}
           </div>
         )}
 
@@ -176,17 +245,25 @@ export function PapazKactiActivity({
         )}
 
         {game && (
-          <div className={styles.players} style={{ gridTemplateColumns: '1fr', gap: '10px' }}>
-            {players.map((p) => {
-              const cardCount = game.hand_counts[p.id] ?? 0;
-              const isTarget = p.id === targetPlayerId;
-              const isMe = p.id === currentUserId;
+          <div className={styles.players} style={{ gridTemplateColumns: "1fr", gap: 10 }}>
+            {players.map((player) => {
+              const cardCount = game.hand_counts[player.id] ?? 0;
+              const isTarget = player.id === targetPlayerId;
+              const isMe = player.id === currentUserId;
               return (
-                <div key={p.id} className={styles.player} style={{ 
-                  border: isTarget && myTurn ? '1px solid #ff9eb1' : game.turn_user_id === p.id ? '1px solid #fff' : '',
-                  opacity: cardCount === 0 && game.status === 'active' ? 0.5 : 1
-                }}>
-                  <strong>{p.display_name} {isMe && "(Sen)"}</strong>
+                <div
+                  key={player.id}
+                  className={styles.player}
+                  style={{
+                    border: isTarget && myTurn
+                      ? "1px solid #ff9eb1"
+                      : game.turn_user_id === player.id
+                        ? "1px solid #fff"
+                        : undefined,
+                    opacity: cardCount === 0 && game.status === "active" ? 0.5 : 1,
+                  }}
+                >
+                  <strong>{player.display_name} {isMe && "(Sen)"}</strong>
                   <small>{cardCount > 0 ? `${cardCount} kart` : "Bitti!"}</small>
                 </div>
               );
@@ -201,26 +278,29 @@ export function PapazKactiActivity({
         <div className={styles.table}>
           <div className={styles.opponentHand} aria-label={`Hedef oyuncuda ${targetHandCount} kart var`}>
             {targetHandCount > 0 ? (
-               Array.from({ length: targetHandCount }, (_, index) => (
-                <CardBack 
-                  key={`target-${index}`} 
+              Array.from({ length: targetHandCount }, (_, index) => (
+                <CardBack
+                  key={`target-${index}`}
                   onClick={myTurn && targetPlayerId ? () => onDrawCard(index) : undefined}
                   disabled={!myTurn || busy}
                 />
               ))
             ) : (
-              <div style={{ color: 'var(--muted)', fontSize: '11px' }}>Sırasını bekleyen oyuncu</div>
+              <div style={{ color: "var(--muted)", fontSize: 11 }}>Sırasını bekleyen oyuncu</div>
             )}
           </div>
 
-          <div className={styles.center} style={{ gridTemplateColumns: '1fr' }}>
-             <div className={styles.pile}>
-                {myTurn && targetPlayerUser && (
-                   <span className={styles.status} style={{ background: 'transparent', border: '0', fontSize: '12px', fontWeight: 'bold' }}>
-                     ⬆️ {targetPlayerUser.display_name} kullanıcısından bir kart seç
-                   </span>
-                )}
-             </div>
+          <div className={styles.center} style={{ gridTemplateColumns: "1fr" }}>
+            <div className={styles.pile}>
+              {myTurn && targetPlayerUser && (
+                <span
+                  className={styles.status}
+                  style={{ background: "transparent", border: 0, fontSize: 12, fontWeight: "bold" }}
+                >
+                  ⬆️ {targetPlayerUser.display_name} kullanıcısından bir kart seç
+                </span>
+              )}
+            </div>
           </div>
 
           <div className={styles.myHand} aria-label="Elindeki kartlar">
@@ -233,14 +313,14 @@ export function PapazKactiActivity({
               />
             ))}
             {game.hand.length === 0 && (
-               <div style={{ color: '#fff', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>
-                 Elindeki kartlar bitti, kurtuldun!
-               </div>
+              <div style={{ color: "#fff", fontSize: 14, fontWeight: "bold", marginBottom: 20 }}>
+                Elindeki kartlar bitti, kurtuldun!
+              </div>
             )}
           </div>
 
           <small className={styles.turnHint}>
-            Otomatik olarak çiftler elden atılır. Elinde kart kalmayan oyundan çıkar. Papaz elde kalana kadar oyun devam eder.
+            Çiftler otomatik atılır. Altın çerçeveli K / PAPAZ kartı en sonda elinde kalan oyuncu kaybeder.
           </small>
         </div>
       )}

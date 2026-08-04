@@ -11,6 +11,13 @@ const suitSymbols: Record<PistiCard["suit"], string> = {
   spades: "♠",
 };
 
+const suitNames: Record<PistiCard["suit"], string> = {
+  clubs: "sinek",
+  diamonds: "karo",
+  hearts: "kupa",
+  spades: "maça",
+};
+
 const redSuits = new Set<PistiCard["suit"]>(["diamonds", "hearts"]);
 
 type CardTransformStyle = CSSProperties & {
@@ -42,7 +49,8 @@ function PlayingCard({
       disabled={disabled}
       onClick={onClick}
       style={style}
-      aria-label={`${card.rank} ${card.suit}`}
+      aria-label={`${card.rank} ${suitNames[card.suit]}`}
+      title={`${card.rank} ${suitNames[card.suit]}`}
     >
       <span className={styles.rank}>{card.rank}</span>
       <span className={styles.suit}>{symbol}</span>
@@ -87,6 +95,21 @@ export function PistiActivity({
   const opponentScore = opponentId ? game?.scores[opponentId] ?? 0 : 0;
   const myCaptured = game?.captured_counts[currentUserId] ?? 0;
   const myPisti = game?.pisti_counts[currentUserId] ?? 0;
+  const totalCaptured = Object.values(game?.captured_counts ?? {}).reduce(
+    (sum, count) => sum + count,
+    0,
+  );
+  const openingHiddenCount =
+    game && totalCaptured === 0 && game.table.length >= 4 ? 3 : 0;
+  const visibleTableCards = game?.table.slice(openingHiddenCount).slice(-5) ?? [];
+  const topCard = game?.table[game.table.length - 1] ?? null;
+  const currentTurnName = !game?.turn_user_id
+    ? null
+    : game.turn_user_id === game.player_one_user_id
+      ? game.player_one_user.display_name
+      : game.turn_user_id === game.player_two_user_id
+        ? game.player_two_user?.display_name ?? null
+        : null;
   const winnerName = !game?.winner_user_id
     ? null
     : game.winner_user_id === game.player_one_user_id
@@ -108,7 +131,10 @@ export function PistiActivity({
                 ? "Pişti başladı"
                 : "Oyun tamamlandı"}
         </h2>
-        <p>Müzik ve sohbet devam ederken iki kişilik klasik Pişti oynayın.</p>
+        <p>
+          Her kart oynanabilir. Üstteki kartla aynı değeri veya Vale (J) atarsan
+          masadaki kartları toplarsın.
+        </p>
 
         {!game && (
           <button className={styles.primary} onClick={onCreate} disabled={busy}>
@@ -131,7 +157,9 @@ export function PistiActivity({
         {game?.status === "active" && (
           <div className={styles.status} role="status" aria-live="polite">
             <i className={styles.statusDot} />
-            {myTurn ? "Sıra sende · Bir kart seç" : "Rakibin hamlesi bekleniyor"}
+            {myTurn
+              ? "Sıra sende · Elinden bir kart seç"
+              : `${currentTurnName ?? "Rakip"} oynuyor`}
           </div>
         )}
 
@@ -153,16 +181,20 @@ export function PistiActivity({
             <div className={styles.players}>
               <div className={styles.player}>
                 <strong>{game.player_one_user.display_name}</strong>
-                <small>{game.scores[game.player_one_user_id] ?? 0} puan · {game.pisti_counts[game.player_one_user_id] ?? 0} pişti</small>
+                <small>
+                  {game.scores[game.player_one_user_id] ?? 0} puan · {game.pisti_counts[game.player_one_user_id] ?? 0} pişti
+                </small>
               </div>
               <span className={styles.versus}>VS</span>
               <div className={styles.player}>
                 <strong>{game.player_two_user?.display_name ?? "Rakip bekleniyor"}</strong>
-                <small>{game.player_two_user_id ? game.scores[game.player_two_user_id] ?? 0 : 0} puan · {game.player_two_user_id ? game.pisti_counts[game.player_two_user_id] ?? 0 : 0} pişti</small>
+                <small>
+                  {game.player_two_user_id ? game.scores[game.player_two_user_id] ?? 0 : 0} puan · {game.player_two_user_id ? game.pisti_counts[game.player_two_user_id] ?? 0 : 0} pişti
+                </small>
               </div>
             </div>
             <div className={styles.scoreboard}>
-              <div><b>{myScore}</b><span>Puanın</span></div>
+              <div><b>{myScore}</b><span>Anlık puanın</span></div>
               <div><b>{myCaptured}</b><span>Topladığın</span></div>
               <div><b>{myPisti}</b><span>Pişti</span></div>
             </div>
@@ -190,29 +222,43 @@ export function PistiActivity({
               {game.table.length === 0 ? (
                 <span className={styles.emptyPile}>Orta boş</span>
               ) : (
-                game.table.slice(-5).map((card, index, cards) => {
-                  const offset = index - cards.length + 1;
-                  const cardStyle: CardTransformStyle = {
-                    "--card-x": `${offset * 5}px`,
-                    "--card-y": `${offset * -3}px`,
-                    "--card-rotation": `${offset * 2.5}deg`,
-                  };
-                  return (
-                    <PlayingCard
-                      card={card}
-                      className={styles.tableCard}
-                      key={card.id}
-                      disabled
-                      style={cardStyle}
+                <>
+                  {Array.from({ length: openingHiddenCount }, (_, index) => (
+                    <span
+                      className={styles.cardBack}
+                      key={`opening-hidden-${index}`}
+                      aria-label="Açılışın kapalı kartı"
+                      style={{
+                        position: "absolute",
+                        marginLeft: 0,
+                        transform: `translate(${(index - 1) * 3}px, ${(index - 1) * -2}px) rotate(${(index - 1) * 1.5}deg)`,
+                      }}
                     />
-                  );
-                })
+                  ))}
+                  {visibleTableCards.map((card, index, cards) => {
+                    const offset = index - cards.length + 1;
+                    const cardStyle: CardTransformStyle = {
+                      "--card-x": `${offset * 5}px`,
+                      "--card-y": `${offset * -3}px`,
+                      "--card-rotation": `${offset * 2.5}deg`,
+                    };
+                    return (
+                      <PlayingCard
+                        card={card}
+                        className={styles.tableCard}
+                        key={card.id}
+                        disabled
+                        style={cardStyle}
+                      />
+                    );
+                  })}
+                </>
               )}
             </div>
 
             <div className={styles.captured}>
               <span>Toplanan</span>
-              <b>{Object.values(game.captured_counts).reduce((sum, count) => sum + count, 0)}</b>
+              <b>{totalCaptured}</b>
             </div>
           </div>
 
@@ -232,8 +278,10 @@ export function PistiActivity({
             {game.status === "waiting"
               ? "İkinci oyuncu katıldığında kartlar dağıtılacak."
               : myTurn
-                ? "Oynamak istediğin karta dokun."
-                : `Rakip ${opponentScore} puanda.`}
+                ? topCard
+                  ? `Üst kart ${topCard.rank}${suitSymbols[topCard.suit]}. Eş değer veya J masayı toplar.`
+                  : "Orta boş; istediğin kartı oynayabilirsin."
+                : `${currentTurnName ?? "Rakip"} hamle yapıyor · rakip ${opponentScore} puanda.`}
           </small>
         </div>
       )}
