@@ -12,7 +12,7 @@ export type ChatMessage = {
   user_id: string;
   text: string;
   reactions: Record<string, string[]>;
-  message_type: "text" | "chess_invite" | "pisti_invite" | "papaz_kacti_invite" | "tek_kart_invite";
+  message_type: "text" | "chess_invite" | "pisti_invite" | "papaz_kacti_invite" | "tek_kart_invite" | "kelime_kapismasi_invite";
   payload: Record<string, string>;
   created_at: string;
   user: JamBoxUser;
@@ -166,6 +166,63 @@ export type TekKartGame = {
   can_call_tek_kart: boolean;
   called_tek_kart: boolean;
   players: TekKartPlayer[];
+};
+
+export type KelimeKapismasiDifficulty = "easy" | "medium" | "hard";
+
+export type KelimeKapismasiStatus =
+  | "waiting"
+  | "countdown"
+  | "playing"
+  | "round_result"
+  | "finished";
+
+export type KelimeKapismasiPlayer = {
+  user_id: string;
+  player_order: number;
+  current_word_count: number;
+  stage_points: number;
+  total_words: number;
+  total_letters: number;
+  is_creator: boolean;
+  user: JamBoxUser;
+};
+
+export type KelimeKapismasiRoundPlayerResult = {
+  user_id: string;
+  words: string[];
+  word_count: number;
+  total_letters: number;
+  longest_word: string | null;
+  stage_points: number;
+};
+
+export type KelimeKapismasiRoundResult = {
+  stage_number: number;
+  difficulty: KelimeKapismasiDifficulty;
+  winner_user_id: string | null;
+  players: KelimeKapismasiRoundPlayerResult[];
+};
+
+export type KelimeKapismasiGame = {
+  id: string;
+  creator_id: string;
+  status: KelimeKapismasiStatus;
+  version: number;
+  stage_number: number;
+  stage_count: number;
+  difficulty: KelimeKapismasiDifficulty | null;
+  letters: string[];
+  min_length: number;
+  duration_seconds: number;
+  phase_started_at: string | null;
+  phase_ends_at: string | null;
+  remaining_seconds: number;
+  own_words: string[];
+  own_word_count: number;
+  players: KelimeKapismasiPlayer[];
+  latest_result: KelimeKapismasiRoundResult | null;
+  winner_user_id: string | null;
 };
 
 export type JamBoxRoom = {

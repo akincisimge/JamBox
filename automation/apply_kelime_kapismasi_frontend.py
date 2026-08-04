@@ -282,7 +282,21 @@ replace_many(
     setKelimeKapismasiError("");
     setView("home");
 ''',
-    2,
+    1,
+)
+
+replace_once(
+    "app/JamBoxApp.tsx",
+    '''      setTekKartGame(null);
+      setTekKartError("");
+      setView("home");
+''',
+    '''      setTekKartGame(null);
+      setTekKartError("");
+      setKelimeKapismasiGame(null);
+      setKelimeKapismasiError("");
+      setView("home");
+''',
 )
 
 replace_once(

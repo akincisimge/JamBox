@@ -15,6 +15,7 @@ import { ChessActivity } from "../components/room/ChessActivity";
 import { PistiActivity } from "../components/room/PistiActivity";
 import { PapazKactiActivity } from "../components/room/PapazKactiActivity";
 import { TekKartActivity } from "../components/room/TekKartActivity";
+import { KelimeKapismasiActivity } from "../components/room/KelimeKapismasiActivity";
 import { SpotifySignInButton } from "../components/spotify/SpotifySignInButton";
 import {
   addJamBoxChessTestOpponent,
@@ -54,6 +55,12 @@ import {
   playJamBoxTekKartCard,
   restartJamBoxTekKartGame,
   startJamBoxTekKartGame,
+  createJamBoxKelimeKapismasiGame,
+  getJamBoxKelimeKapismasiGame,
+  joinJamBoxKelimeKapismasiGame,
+  restartJamBoxKelimeKapismasiGame,
+  startJamBoxKelimeKapismasiGame,
+  submitJamBoxKelimeKapismasiWord,
 } from "../lib/jambox/client";
 import {
   clearSpotifySession,
@@ -79,6 +86,7 @@ import type {
   PapazKactiGame,
   TekKartColor,
   TekKartGame,
+  KelimeKapismasiGame,
   SpotifyPlaylist,
   SpotifyProfile,
   SpotifyTrack,
@@ -142,8 +150,11 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [tekKartGame, setTekKartGame] = useState<TekKartGame | null>(null);
   const [tekKartBusy, setTekKartBusy] = useState(false);
   const [tekKartError, setTekKartError] = useState("");
+  const [kelimeKapismasiGame, setKelimeKapismasiGame] = useState<KelimeKapismasiGame | null>(null);
+  const [kelimeKapismasiBusy, setKelimeKapismasiBusy] = useState(false);
+  const [kelimeKapismasiError, setKelimeKapismasiError] = useState("");
   const [activeGameTab, setActiveGameTab] = useState<
-    "chess" | "pisti" | "papaz_kacti" | "tek_kart"
+    "chess" | "pisti" | "papaz_kacti" | "tek_kart" | "kelime_kapismasi"
   >("chess");
   const [themeColors, setThemeColors] = useState({ primary: "#ff5c8a", secondary: "#7c3aed", deep: "#090b1d" });
 
@@ -305,6 +316,17 @@ const [searchLoading, setSearchLoading] = useState(false);
     };
     void fetchTekKartState();
 
+    const fetchKelimeKapismasiState = async () => {
+      try {
+        setKelimeKapismasiGame(
+          await getJamBoxKelimeKapismasiGame(jamBoxUserId, activeRoomCode),
+        );
+      } catch {
+        setKelimeKapismasiGame(null);
+      }
+    };
+    void fetchKelimeKapismasiState();
+
     return connectToJamBoxRoom(jamBoxUserId, activeRoomCode, {
       onRoomUpdated: async () => {
         try {
@@ -351,6 +373,16 @@ const [searchLoading, setSearchLoading] = useState(false);
           setTekKartGame(null);
         }
       },
+      onKelimeKapismasiUpdated: async () => {
+        try {
+          setKelimeKapismasiGame(
+            await getJamBoxKelimeKapismasiGame(jamBoxUserId, activeRoomCode),
+          );
+        } catch (error) {
+          console.error("Kelime Kapışması güncellenemedi:", error);
+          setKelimeKapismasiGame(null);
+        }
+      },
       onMessageCreated: (newMessage) => {
         setMessages((items) =>
           items.some((item) => item.id === newMessage.id)
@@ -372,6 +404,8 @@ const [searchLoading, setSearchLoading] = useState(false);
         setPistiGame(null);
         setPapazKactiGame(null);
         setTekKartGame(null);
+        setKelimeKapismasiGame(null);
+        setKelimeKapismasiError("");
         setView("home");
         setToast("Oda sahibi odayı kapattı.");
       },
@@ -557,6 +591,8 @@ const openSpotifyPlaylist = async (
     setPapazKactiError("");
     setTekKartGame(null);
     setTekKartError("");
+    setKelimeKapismasiGame(null);
+    setKelimeKapismasiError("");
     setView("home");
   };
 
@@ -627,6 +663,8 @@ const openSpotifyPlaylist = async (
       setPapazKactiError("");
       setTekKartGame(null);
       setTekKartError("");
+      setKelimeKapismasiGame(null);
+      setKelimeKapismasiError("");
       setView("home");
     } catch (error) {
       setToast(
@@ -982,6 +1020,113 @@ const openSpotifyPlaylist = async (
       setToast(msg);
     } finally {
       setTekKartBusy(false);
+    }
+  }
+
+  async function refreshKelimeKapismasiGame() {
+    if (!activeRoom || !jamBoxUserId) return;
+    try {
+      setKelimeKapismasiGame(
+        await getJamBoxKelimeKapismasiGame(jamBoxUserId, activeRoom.code),
+      );
+    } catch (error) {
+      console.error("Kelime Kapışması yenilenemedi:", error);
+    }
+  }
+
+  async function openKelimeKapismasiTable() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setKelimeKapismasiBusy(true);
+    setKelimeKapismasiError("");
+    try {
+      setKelimeKapismasiGame(
+        await createJamBoxKelimeKapismasiGame(jamBoxUserId, activeRoom.code),
+      );
+      setActiveGameTab("kelime_kapismasi");
+      setToast("Kelime Kapışması daveti sohbete gönderildi.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Kelime Kapışması açılamadı.";
+      setKelimeKapismasiError(msg);
+      setToast(msg);
+    } finally {
+      setKelimeKapismasiBusy(false);
+    }
+  }
+
+  async function acceptKelimeKapismasiInvite() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setKelimeKapismasiBusy(true);
+    setKelimeKapismasiError("");
+    try {
+      setKelimeKapismasiGame(
+        await joinJamBoxKelimeKapismasiGame(jamBoxUserId, activeRoom.code),
+      );
+      setActiveGameTab("kelime_kapismasi");
+      setToast("Kelime Kapışması düellosuna katıldın.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Düelloya katılamadın.";
+      setKelimeKapismasiError(msg);
+      setToast(msg);
+    } finally {
+      setKelimeKapismasiBusy(false);
+    }
+  }
+
+  async function startKelimeKapismasiGame() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setKelimeKapismasiBusy(true);
+    setKelimeKapismasiError("");
+    try {
+      setKelimeKapismasiGame(
+        await startJamBoxKelimeKapismasiGame(jamBoxUserId, activeRoom.code),
+      );
+      setToast("Kelime Kapışması başladı.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Kelime Kapışması başlatılamadı.";
+      setKelimeKapismasiError(msg);
+      setToast(msg);
+    } finally {
+      setKelimeKapismasiBusy(false);
+    }
+  }
+
+  async function submitKelimeKapismasiWord(word: string): Promise<boolean> {
+    if (!activeRoom || !jamBoxUserId) return false;
+    setKelimeKapismasiBusy(true);
+    setKelimeKapismasiError("");
+    try {
+      setKelimeKapismasiGame(
+        await submitJamBoxKelimeKapismasiWord(
+          jamBoxUserId,
+          activeRoom.code,
+          word,
+        ),
+      );
+      return true;
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Kelime eklenemedi.";
+      setKelimeKapismasiError(msg);
+      return false;
+    } finally {
+      setKelimeKapismasiBusy(false);
+    }
+  }
+
+  async function restartKelimeKapismasiGame() {
+    if (!activeRoom || !jamBoxUserId) return;
+    setKelimeKapismasiBusy(true);
+    setKelimeKapismasiError("");
+    try {
+      setKelimeKapismasiGame(
+        await restartJamBoxKelimeKapismasiGame(jamBoxUserId, activeRoom.code),
+      );
+      setToast("Kelime Kapışması rövanşı hazır.");
+    } catch (error) {
+      const msg = error instanceof JamBoxApiError ? error.message : "Rövanş başlatılamadı.";
+      setKelimeKapismasiError(msg);
+      setToast(msg);
+    } finally {
+      setKelimeKapismasiBusy(false);
     }
   }
 
@@ -1523,6 +1668,30 @@ const openSpotifyPlaylist = async (
                         {tekKartGame?.status === "active" && <b>Oyun başladı</b>}
                       </div>
                     )}
+                    {item.message_type === "kelime_kapismasi_invite" && (
+                      <div className="chess-invite-card">
+                        <span>🔤</span>
+                        <div>
+                          <strong>Kelime Kapışması daveti</strong>
+                          <small>İki kişilik, altı etaplı eş zamanlı kelime düellosu.</small>
+                        </div>
+                        {kelimeKapismasiGame?.status === "waiting" &&
+                          !kelimeKapismasiGame.players.some(
+                            (player) => player.user_id === jamBoxUserId,
+                          ) && (
+                            <button
+                              type="button"
+                              onClick={acceptKelimeKapismasiInvite}
+                              disabled={kelimeKapismasiBusy}
+                            >
+                              Katıl
+                            </button>
+                          )}
+                        {kelimeKapismasiGame &&
+                          kelimeKapismasiGame.status !== "waiting" &&
+                          kelimeKapismasiGame.status !== "finished" && <b>Oyun başladı</b>}
+                      </div>
+                    )}
                     <div className="message-reactions">
                       {Object.entries(item.reactions ?? {}).map(
                         ([emoji, userIds]) => (
@@ -1630,6 +1799,13 @@ const openSpotifyPlaylist = async (
               >
                 🎨 Tek Kart
               </button>
+              <button
+                type="button"
+                className={`game-tab${activeGameTab === "kelime_kapismasi" ? " active" : ""}`}
+                onClick={() => setActiveGameTab("kelime_kapismasi")}
+              >
+                🔤 Kelime Kapışması
+              </button>
             </nav>
 
             {activeGameTab === "chess" && (
@@ -1687,6 +1863,21 @@ const openSpotifyPlaylist = async (
                 onDraw={drawTekKartCard}
                 onCall={announceTekKart}
                 onRestart={restartTekKartGame}
+              />
+            )}
+
+            {activeGameTab === "kelime_kapismasi" && (
+              <KelimeKapismasiActivity
+                game={kelimeKapismasiGame}
+                currentUserId={jamBoxUserId}
+                busy={kelimeKapismasiBusy}
+                error={kelimeKapismasiError}
+                onCreate={openKelimeKapismasiTable}
+                onJoin={acceptKelimeKapismasiInvite}
+                onStart={startKelimeKapismasiGame}
+                onSubmitWord={submitKelimeKapismasiWord}
+                onRestart={restartKelimeKapismasiGame}
+                onRefresh={refreshKelimeKapismasiGame}
               />
             )}
           </section>
