@@ -202,7 +202,7 @@ async def join_pisti_game(
     state = start_game([str(game.player_one_user_id), str(actor.id)])
     game.state = _state_to_dict(state)
     game.status = "active"
-    game.scores = {}
+    game.scores = scores(state, include_majority=False)
     game.winner_user_id = None
     await session.commit()
     game = await _load_game(session, room)
@@ -235,9 +235,8 @@ async def make_pisti_move(
 
     game.state = _state_to_dict(state)
     game.status = state.status
-    if state.status == "finished":
-        game.scores = scores(state)
-        game.winner_user_id = _winner_id(game.scores)
+    game.scores = scores(state, include_majority=state.status == "finished")
+    game.winner_user_id = _winner_id(game.scores) if state.status == "finished" else None
     await session.commit()
     game = await _load_game(session, room)
     return _game_response(game, actor.id)
@@ -256,7 +255,7 @@ async def restart_pisti_game(
     state = start_game([str(game.player_one_user_id), str(game.player_two_user_id)])
     game.state = _state_to_dict(state)
     game.status = "active"
-    game.scores = {}
+    game.scores = scores(state, include_majority=False)
     game.winner_user_id = None
     await session.commit()
     game = await _load_game(session, room)

@@ -26,8 +26,6 @@ class PistiState:
     status: Literal["active", "finished"] = "active"
 
 
-
-
 def start_game(
     user_ids: Sequence[str],
     *,
@@ -41,7 +39,8 @@ def start_game(
     deck = fresh_deck(rng)
     players = [PlayerState(user_id=user_id) for user_id in user_ids]
 
-    # Masaya dört kart açılır; elde kalan desteden oyunculara dörder kart dağıtılır.
+    # Açılışta üç kapalı, bir açık olmak üzere dört kart masaya bırakılır.
+    # Kartların tamamı oyun motorunda masada tutulur; kapalı/açık sunumu istemci yapar.
     table = [deck.pop() for _ in range(4)]
     state = PistiState(players=players, deck=deck, table=table)
     _deal_hands(state)
@@ -82,13 +81,18 @@ def play_card(state: PistiState, user_id: str, card_id: str) -> None:
             _finish_game(state)
 
 
-def scores(state: PistiState) -> dict[str, int]:
+def scores(state: PistiState, *, include_majority: bool = True) -> dict[str, int]:
+    """Return current scores.
+
+    Special-card and Pişti points are visible during the game. The three-point
+    card-majority bonus is added only after the round is finished.
+    """
     result = {
         player.user_id: _captured_card_score(player) + player.pisti_count * 10
         for player in state.players
     }
     captured_counts = [len(player.captured) for player in state.players]
-    if captured_counts[0] != captured_counts[1]:
+    if include_majority and captured_counts[0] != captured_counts[1]:
         result[state.players[captured_counts.index(max(captured_counts))].user_id] += 3
     return result
 
@@ -117,4 +121,3 @@ def _captured_card_score(player: PlayerState) -> int:
         elif card.rank == "10" and card.suit == "diamonds":
             score += 3
     return score
-
